@@ -34,7 +34,9 @@ class Parser {
   TokenInfo Buf[2];
 
   ast::BlockStmt *CurrentBlock = nullptr;
-  north::type::Module *Module = nullptr;
+  type::Module *Module = nullptr;
+  bool ExpectNull = false;
+  ast::IfExpr *LastIfNode = nullptr;
 
 public:
   explicit Parser(const char *Filename)

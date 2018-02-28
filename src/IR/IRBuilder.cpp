@@ -137,8 +137,8 @@ Value *IRBuilder::visit(ast::BinaryExpr &Expr) {
     return Builder.CreateMul(LHS, RHS, "multmp");
 
   case Token::LessThan:
-    LHS = Builder.CreateFCmpULT(LHS, RHS, "cmptmp");
-    return Builder.CreateUIToFP(LHS, Type::getDoubleTy(Context), "booltmp");
+    return Builder.CreateICmpULT(LHS, RHS, "cmptmp");
+    // return Builder.CreateUIToFP(LHS, Type::getDoubleTy(Context), "booltmp");
   }
 
   return nullptr;
@@ -190,8 +190,9 @@ Value *IRBuilder::visit(ast::IfExpr &If) {
     Diagnostic(Module->getModuleIdentifier())
         .semanticError("empty if condition");
 
-  Cond = Builder.CreateICmp(llvm::CmpInst::ICMP_NE, Cond,
-                            ConstantInt::get(Context, APInt(16, 0)), "ifcond");
+  Cond = Builder.CreateICmp(
+      llvm::CmpInst::ICMP_NE, Cond,
+      ConstantInt::get(Type::getInt1Ty(Context), 0, false), "ifcond");
 
   Function *Fn = Builder.GetInsertBlock()->getParent();
 
@@ -214,6 +215,9 @@ Value *IRBuilder::visit(ast::IfExpr &If) {
   Fn->getBasicBlockList().push_back(ElseBB);
   Builder.SetInsertPoint(ElseBB);
 
+  Value *ElseV = Builder.CreateICmp(
+      llvm::CmpInst::ICMP_NE, Cond,
+      ConstantInt::get(Type::getInt1Ty(Context), 1, false), "ifcond");
   Value *Else = If.getElseBranch()->getBlock()->accept(*this);
   if (!Else)
     Diagnostic(Module->getModuleIdentifier()).semanticError("lul");
@@ -224,9 +228,11 @@ Value *IRBuilder::visit(ast::IfExpr &If) {
   Fn->getBasicBlockList().push_back(MergeBB);
   Builder.SetInsertPoint(MergeBB);
 
-  PHINode *PN = Builder.CreatePHI(Type::getInt32Ty(Context), 2, "iftmp");
+  PHINode *PN = Builder.CreatePHI(Type::getInt1Ty(Context), 2, "iftmp");
+
   PN->addIncoming(Cond, ThenBB);
-  PN->addIncoming(Else, ElseBB);
+
+  PN->addIncoming(ElseV, (BasicBlock *)Else);
 
   return PN;
 }

@@ -38,8 +38,13 @@ int main(int argc, const char *argv[]) {
   north::Parser parser(FileName.c_str());
   auto Module = parser.parse();
 
+  north::ast::Dumper D;
+  for (auto I = Module->getAST()->begin(), E = Module->getAST()->end(); I != E;
+       ++I) {
+    I->accept(D);
+  }
+
   north::ir::IRBuilder B(Module);
-  // north::ast::Dumper B;
   for (auto I = Module->getAST()->begin(), E = Module->getAST()->end(); I != E;
        ++I) {
     I->accept(B);

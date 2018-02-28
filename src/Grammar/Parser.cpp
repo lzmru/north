@@ -44,7 +44,10 @@ Token Parser::peekToken() {
   return Buf[1].Type;
 }
 
-void Parser::cleanBuf() { Peeked = false; }
+void Parser::cleanBuf() {
+  if (Buf[1].Type == Token::Indent || Buf[1].Type == Token::Dedent)
+    Peeked = false;
+}
 
 bool Parser::match(Token With) {
   if (peekToken() == With) {
@@ -57,6 +60,7 @@ bool Parser::match(Token With) {
 void Parser::expect(Token What) {
   if (!match(What)) {
     nextToken();
+    throw std::runtime_error("qwe");
     Diagnostic(Filename).expectedToken(What, Buf[0]);
   }
 }
@@ -463,6 +467,16 @@ ast::Node *Parser::parsePrefix() {
   case Token::If:
     return parseIfExpr();
 
+  case Token::Else:
+    if (!LastIfNode) {
+      Diagnostic(Module->getModuleIdentifier())
+          .semanticError("else without if");
+    }
+    LastIfNode->setElseBranch(parseIfExpr(true));
+    LastIfNode = LastIfNode->getElseBranch();
+    ExpectNull = true;
+    return nullptr;
+
   case Token::Var:
     return parseVarDecl();
 
@@ -608,15 +622,7 @@ ast::IfExpr *Parser::parseIfExpr(bool isElse) {
 
   expect(Token::Colon);
   If->setBlock(parseBlockStmt());
-
-  Lex.turnFlag(Lexer::IndentationSensitive, false);
-  cleanBuf();
-
-  if (match(Token::Else))
-    If->setElseBranch(parseIfExpr(true));
-
-  Lex.turnFlag(Lexer::IndentationSensitive, false);
-  cleanBuf();
+  LastIfNode = If;
 
   return If;
 }
@@ -704,7 +710,6 @@ ast::Node *Parser::parsePrimary() {
 /// blockStmt = INDENT primary { '\n' INDENT primary };
 ast::BlockStmt *Parser::parseBlockStmt() {
   Lex.turnFlag(Lexer::IndentationSensitive, true);
-  cleanBuf();
 
   Lex.incrementIndentLevel();
 
@@ -712,20 +717,22 @@ ast::BlockStmt *Parser::parseBlockStmt() {
   CurrentBlock = Block;
 
   while (match(Token::Indent)) {
-    if (auto Primary = parsePrimary())
+    if (auto Primary = parsePrimary()) {
       Block->addNode(Primary);
-    else
+    } else if (ExpectNull) {
+      ExpectNull = false;
+    } else {
       break;
+    }
   }
 
-  Lex.turnFlag(Lexer::IndentationSensitive, true);
-  cleanBuf();
   expect(Token::Dedent);
 
   Lex.decrementIndentLevel();
 
   if (!Lex.getIndentLevel()) {
     Lex.turnFlag(Lexer::IndentationSensitive, false);
+    LastIfNode = nullptr;
     cleanBuf();
   }
 

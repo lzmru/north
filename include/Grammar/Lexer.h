@@ -35,6 +35,7 @@ public:
   void turnFlag(LexerFlag F, bool State) { Flags[F] = State; }
   bool getFlagState(LexerFlag F) { return Flags[F]; }
   TokenInfo getNextToken();
+  void resetPos(Position NewPos) { Pos = NewPos;}
 
   void incrementIndentLevel() { ++IndentLevel; }
   void decrementIndentLevel() { --IndentLevel; }
