@@ -44,6 +44,8 @@ Token Parser::peekToken() {
   return Buf[1].Type;
 }
 
+void Parser::cleanBuf() { Peeked = false; }
+
 bool Parser::match(Token With) {
   if (peekToken() == With) {
     nextToken();
@@ -607,11 +609,14 @@ ast::IfExpr *Parser::parseIfExpr(bool isElse) {
   expect(Token::Colon);
   If->setBlock(parseBlockStmt());
 
-  if (peekToken() == Token::Indent) {
-    nextToken();
-    if (match(Token::Else))
-      If->setElseBranch(parseIfExpr(true));
-  }
+  Lex.turnFlag(Lexer::IndentationSensitive, false);
+  cleanBuf();
+
+  if (match(Token::Else))
+    If->setElseBranch(parseIfExpr(true));
+
+  Lex.turnFlag(Lexer::IndentationSensitive, false);
+  cleanBuf();
 
   return If;
 }
@@ -698,8 +703,8 @@ ast::Node *Parser::parsePrimary() {
 
 /// blockStmt = INDENT primary { '\n' INDENT primary };
 ast::BlockStmt *Parser::parseBlockStmt() {
-  if (!Lex.getIndentLevel())
-    Lex.switchFlag(Lexer::IndentationSensitive);
+  Lex.turnFlag(Lexer::IndentationSensitive, true);
+  cleanBuf();
 
   Lex.incrementIndentLevel();
 
@@ -712,12 +717,17 @@ ast::BlockStmt *Parser::parseBlockStmt() {
     else
       break;
   }
+
+  Lex.turnFlag(Lexer::IndentationSensitive, true);
+  cleanBuf();
   expect(Token::Dedent);
 
   Lex.decrementIndentLevel();
 
-  if (!Lex.getIndentLevel())
-    Lex.switchFlag(Lexer::IndentationSensitive);
+  if (!Lex.getIndentLevel()) {
+    Lex.turnFlag(Lexer::IndentationSensitive, false);
+    cleanBuf();
+  }
 
   return Block;
 }

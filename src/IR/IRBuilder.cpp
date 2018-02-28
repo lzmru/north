@@ -138,7 +138,6 @@ Value *IRBuilder::visit(ast::BinaryExpr &Expr) {
 
   case Token::LessThan:
     LHS = Builder.CreateFCmpULT(LHS, RHS, "cmptmp");
-    // Convert bool 0/1 to double 0.0 or 1.0
     return Builder.CreateUIToFP(LHS, Type::getDoubleTy(Context), "booltmp");
   }
 
@@ -191,21 +190,17 @@ Value *IRBuilder::visit(ast::IfExpr &If) {
     Diagnostic(Module->getModuleIdentifier())
         .semanticError("empty if condition");
 
-  // Convert condition to a bool by comparing non-equal to 0.0.
   Cond = Builder.CreateICmp(llvm::CmpInst::ICMP_NE, Cond,
                             ConstantInt::get(Context, APInt(16, 0)), "ifcond");
 
   Function *Fn = Builder.GetInsertBlock()->getParent();
 
-  // Create blocks for the then and else cases.  Insert the 'then' block at the
-  // end of the function.
   BasicBlock *ThenBB = BasicBlock::Create(Context, "then", Fn);
   BasicBlock *ElseBB = BasicBlock::Create(Context, "else");
   BasicBlock *MergeBB = BasicBlock::Create(Context, "ifcont");
 
   Builder.CreateCondBr(Cond, ThenBB, ElseBB);
 
-  // Emit then value.
   Builder.SetInsertPoint(ThenBB);
 
   auto Then = If.getBlock()->accept(*this);
@@ -213,7 +208,6 @@ Value *IRBuilder::visit(ast::IfExpr &If) {
     Diagnostic(Module->getModuleIdentifier()).semanticError("empty if block");
 
   Builder.CreateBr(MergeBB);
-  // Codegen of 'Then' can change the current block, update ThenBB for the PHI.
   ThenBB = Builder.GetInsertBlock();
 
   // Emit else block.
@@ -225,10 +219,8 @@ Value *IRBuilder::visit(ast::IfExpr &If) {
     Diagnostic(Module->getModuleIdentifier()).semanticError("lul");
 
   Builder.CreateBr(MergeBB);
-  // Codegen of 'Else' can change the current block, update ElseBB for the PHI.
   ElseBB = Builder.GetInsertBlock();
 
-  // Emit merge block.
   Fn->getBasicBlockList().push_back(MergeBB);
   Builder.SetInsertPoint(MergeBB);
 

@@ -62,7 +62,7 @@ void Lexer::skipWhitespace() {
 
       Pos.Column = 1;
 
-      if ((Flags & IndentationSensitive) == IndentationSensitive) {
+      if (getFlagState(IndentationSensitive)) {
         NewLine = true;
         return;
       }
@@ -122,7 +122,7 @@ uint8_t Lexer::checkIndentLevel() {
 
 Lexer::Lexer(const char *Path) {
   // Flags |= IndentationSensitive;
-  Flags = 0;
+  Flags.reset();
   NewLine = false;
   IndentLevel = 0;
   Filename = Path;
@@ -144,8 +144,6 @@ Lexer::Lexer(const char *Path) {
   Pos.Line = 1;
 }
 
-void Lexer::switchFlag(LexerFlag Flag) { Flags ^= Flag; }
-
 TokenInfo Lexer::getNextToken() {
 __start:
 
@@ -154,14 +152,18 @@ __start:
   if (NewLine) {
     if (auto Length = checkIndentLevel()) {
       NewLine = false;
-      return makeToken(Token::Indent, Length);
+      if (getFlagState(IndentationSensitive))
+        return makeToken(Token::Indent, Length);
+      Pos.Length = Length;
+      Pos.Column += Length;
+      Pos.Offset += Length;
     } else {
       if (IndentLevel)
         return makeToken(Token::Dedent, 0);
 
       NewLine = false;
-      goto __start;
     }
+    goto __start;
   }
 
   Pos.Length = 0;
@@ -217,7 +219,7 @@ __start:
     ++Pos.Length;
     ++Pos.Line;
 
-    if ((Flags & YieldComments) == YieldComments) {
+    if (Flags[YieldComments]) {
       return makeToken(Token::Comment);
     } else {
       Pos.Column += Pos.Length;

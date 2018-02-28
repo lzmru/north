@@ -12,6 +12,8 @@
 
 #include "Token.h"
 
+#include <bitset>
+
 namespace north {
 
 class Lexer {
@@ -19,18 +21,19 @@ class Lexer {
   const char *Buffer;
   const char *BufferEnd;
   Position Pos;
-  uint8_t Flags;
+  std::bitset<2> Flags;
   uint8_t IndentLevel;
   bool NewLine;
 
 public:
   enum LexerFlag {
-    YieldComments = 1,
-    IndentationSensitive = 2, // 4, 8
+    YieldComments = 0,
+    IndentationSensitive = 1,
   };
 
   explicit Lexer(const char *Path);
-  void switchFlag(LexerFlag Flag);
+  void turnFlag(LexerFlag F, bool State) { Flags[F] = State; }
+  bool getFlagState(LexerFlag F) { return Flags[F]; }
   TokenInfo getNextToken();
 
   void incrementIndentLevel() { ++IndentLevel; }

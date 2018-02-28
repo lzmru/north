@@ -82,14 +82,10 @@ void Module::addFunction(north::ast::FunctionDecl *Fn) {
   llvm::FunctionType *FnType = nullptr;
   llvm::Type *ResultType = nullptr;
 
-  auto CheckAttributes = [&] {
-    if (Fn->getTypeDecl()->isPtr())
-      ResultType = ResultType->getPointerTo(0);
-  };
-
   if (auto ReturnType = Fn->getTypeDecl()) {
     ResultType = getType(ReturnType->getIdentifier())->toIR(this);
-    CheckAttributes();
+    if (Fn->getTypeDecl()->isPtr())
+      ResultType = ResultType->getPointerTo(0);
   } else {
     ResultType = Type::Void->toIR(this);
   }
@@ -108,11 +104,6 @@ void Module::addFunction(north::ast::FunctionDecl *Fn) {
   } else {
     FnType = FunctionType::get(ResultType, Fn->isVarArg());
   }
-
-#ifndef _NDEBUG
-  if (!FunctionType::isValidReturnType(FnType))
-    llvm::outs() << "Invalid result type for LLVM function\n";
-#endif
 
   Fn->setIRValue(
       Function::Create(FnType, getLinkageType(Fn), Fn->getIdentifier(), this));
