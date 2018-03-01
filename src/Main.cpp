@@ -30,6 +30,10 @@ using namespace llvm::sys;
 
 static cl::opt<std::string>
     FileName(cl::Positional, cl::desc("<Path to sources>"), cl::Required);
+static cl::opt<std::string> OutputFilename("o",
+                                           cl::desc("Specify output filename"),
+                                           cl::value_desc("filename"));
+static cl::opt<bool> ASTDump("ast-dump", cl::desc("Dump AST"));
 
 int main(int argc, const char *argv[]) {
 
@@ -38,80 +42,73 @@ int main(int argc, const char *argv[]) {
   north::Parser parser(FileName.c_str());
   auto Module = parser.parse();
 
-  north::ast::Dumper D;
-  for (auto I = Module->getAST()->begin(), E = Module->getAST()->end(); I != E;
-       ++I) {
-    I->accept(D);
+  if (ASTDump.getValue()) {
+    north::ast::Dumper D;
+    for (auto I = Module->getAST()->begin(), E = Module->getAST()->end();
+         I != E; ++I) {
+      I->accept(D);
+    }
+  } else {
+
+    north::ir::IRBuilder B(Module);
+    for (auto I = Module->getAST()->begin(), E = Module->getAST()->end();
+         I != E; ++I) {
+      I->accept(B);
+    }
+
+    llvm::outs() << *Module;
+
+    InitializeAllTargetInfos();
+    InitializeAllTargets();
+    InitializeAllTargetMCs();
+    InitializeAllAsmParsers();
+    InitializeAllAsmPrinters();
+
+    auto TargetTriple = sys::getDefaultTargetTriple();
+    Module->setTargetTriple(TargetTriple);
+
+    std::string Error;
+    auto Target = TargetRegistry::lookupTarget(TargetTriple, Error);
+
+    if (!Target) {
+      errs() << Error;
+      return 1;
+    }
+
+    auto CPU = "generic", Features = "";
+
+    TargetOptions opt;
+    auto RM = Optional<Reloc::Model>();
+    auto TheTargetMachine =
+        Target->createTargetMachine(TargetTriple, CPU, Features, opt, RM);
+
+    Module->setDataLayout(TheTargetMachine->createDataLayout());
+
+    std::string Filename = Module->getModuleIdentifier() + ".o";
+    std::error_code EC;
+    raw_fd_ostream dest(Filename, EC, sys::fs::F_None);
+
+    if (EC) {
+      errs() << "Couldn't open file: " << EC.message();
+      return 1;
+    }
+
+    legacy::PassManager pass;
+    auto FileType = TargetMachine::CGFT_ObjectFile;
+
+    if (TheTargetMachine->addPassesToEmitFile(pass, dest, FileType)) {
+      errs() << "TheTargetMachine can't emit a file of this type";
+      return 1;
+    }
+
+    pass.run(*Module);
+    dest.flush();
+
+    system(("gcc " + Filename + " -o " +
+            ((OutputFilename.getValue() == "") ? Module->getModuleIdentifier()
+                                               : OutputFilename.getValue()))
+               .c_str());
   }
-
-  north::ir::IRBuilder B(Module);
-  for (auto I = Module->getAST()->begin(), E = Module->getAST()->end(); I != E;
-       ++I) {
-    I->accept(B);
-  }
-
-  llvm::outs() << *Module;
-
-  InitializeAllTargetInfos();
-  InitializeAllTargets();
-  InitializeAllTargetMCs();
-  InitializeAllAsmParsers();
-  InitializeAllAsmPrinters();
-
-  auto TargetTriple = sys::getDefaultTargetTriple();
-  Module->setTargetTriple(TargetTriple);
-
-  std::string Error;
-  auto Target = TargetRegistry::lookupTarget(TargetTriple, Error);
-
-  if (!Target) {
-    errs() << Error;
-    return 1;
-  }
-
-  auto CPU = "generic", Features = "";
-
-  TargetOptions opt;
-  auto RM = Optional<Reloc::Model>();
-  auto TheTargetMachine =
-      Target->createTargetMachine(TargetTriple, CPU, Features, opt, RM);
-
-  Module->setDataLayout(TheTargetMachine->createDataLayout());
-
-  std::string Filename = Module->getModuleIdentifier() + ".o";
-  std::error_code EC;
-  raw_fd_ostream dest(Filename, EC, sys::fs::F_None);
-
-  if (EC) {
-    errs() << "Couldn't open file: " << EC.message();
-    return 1;
-  }
-
-  legacy::PassManager pass;
-  auto FileType = TargetMachine::CGFT_ObjectFile;
-
-  if (TheTargetMachine->addPassesToEmitFile(pass, dest, FileType)) {
-    errs() << "TheTargetMachine can't emit a file of this type";
-    return 1;
-  }
-
-  pass.run(*Module);
-  dest.flush();
-
-  system(("gcc " + Filename + " -o " + Module->getModuleIdentifier()).c_str());
-  llvm::outs() << "\n*** Program output: ***\n";
-  system(("./" + Module->getModuleIdentifier()).c_str());
-  llvm::outs() << "\n***********************\n";
 
   return 0;
-
-  /*
-    north::Lexer Lex(FileName.c_str());
-    north::TokenInfo Tk;
-    Lex.switchFlag(north::Lexer::IndentationSensitive);
-    while ((Tk = Lex.getNextToken()).Type != north::Token::Eof) {
-      llvm::outs() << north::tokenToString(Tk.Type) << " = " << Tk.toString()
-                   << '\n';
-    }
-    */
 }
