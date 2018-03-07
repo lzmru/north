@@ -12,6 +12,7 @@
 #include "IR/IRBuilder.h"
 
 #include <llvm/IR/LegacyPassManager.h>
+#include <llvm/IR/Verifier.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/Host.h>
 #include <llvm/Support/TargetRegistry.h>
@@ -19,8 +20,10 @@
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Target/TargetOptions.h>
+#include <llvm/Transforms/IPO/FunctionImport.h>
 
 #include <clang/Basic/FileManager.h>
+#include <llvm/ADT/StringMap.h>
 #include <llvm/Support/CommandLine.h>
 
 #include <llvm/Support/Casting.h>
@@ -33,27 +36,31 @@ static cl::opt<std::string>
 static cl::opt<std::string> OutputFilename("o",
                                            cl::desc("Specify output filename"),
                                            cl::value_desc("filename"));
-static cl::opt<bool> ASTDump("ast-dump", cl::desc("Dump AST"));
+static cl::opt<bool> ASTDump("emit-ast",
+                             cl::desc("Emit AST for input source file"));
+
+void applyVisitor(north::ast::Visitor &V, north::type::Module *M) {
+  for (auto I = M->getAST()->begin(), E = M->getAST()->end(); I != E; ++I)
+    I->accept(V);
+}
 
 int main(int argc, const char *argv[]) {
 
   cl::ParseCommandLineOptions(argc, argv, "The North language compiler\n");
 
+  StringMap<Module *> ModuleMap;
   north::Parser parser(FileName.c_str());
   auto Module = parser.parse();
 
   if (ASTDump.getValue()) {
-    north::ast::Dumper D;
-    for (auto I = Module->getAST()->begin(), E = Module->getAST()->end();
-         I != E; ++I) {
-      I->accept(D);
-    }
+    north::ast::Dumper Dumper;
+    applyVisitor(Dumper, Module);
   } else {
+    north::ir::IRBuilder IR(Module);
+    applyVisitor(IR, Module);
 
-    north::ir::IRBuilder B(Module);
-    for (auto I = Module->getAST()->begin(), E = Module->getAST()->end();
-         I != E; ++I) {
-      I->accept(B);
+    if (verifyModule(*Module, &outs())) {
+      outs() << "\nInvalid module\n\n";
     }
 
     llvm::outs() << *Module;

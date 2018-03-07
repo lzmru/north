@@ -116,6 +116,7 @@ public:
 
   IfExpr *getElseBranch() { return ElseBranch.get(); }
   void setElseBranch(IfExpr *NewExpr) { ElseBranch.reset(NewExpr); }
+  bool hasElse() { return ElseBranch.get();}
 
   AST_NODE(IfExpr)
 };

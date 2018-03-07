@@ -48,7 +48,6 @@ public:
 private:
   Token nextToken();
   Token peekToken();
-  void cleanBuf();
   bool match(Token With);
   void expect(Token What);
 

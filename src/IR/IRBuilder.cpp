@@ -20,6 +20,7 @@
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Type.h>
 #include <llvm/IR/Verifier.h>
+#include <llvm/Transforms/IPO/FunctionImport.h>
 
 #include <llvm/ADT/Twine.h>
 #include <llvm/Support/FormatVariadic.h>
@@ -204,9 +205,9 @@ Value *IRBuilder::visit(ast::IfExpr &If) {
 
   Builder.SetInsertPoint(ThenBB);
 
-  auto Then = If.getBlock()->accept(*this);
-  if (!Then)
+  if (!If.getBlock())
     Diagnostic(Module->getModuleIdentifier()).semanticError("empty if block");
+  auto Then = If.getBlock()->accept(*this);
 
   Builder.CreateBr(MergeBB);
   ThenBB = Builder.GetInsertBlock();
@@ -215,12 +216,13 @@ Value *IRBuilder::visit(ast::IfExpr &If) {
   Fn->getBasicBlockList().push_back(ElseBB);
   Builder.SetInsertPoint(ElseBB);
 
-  Value *ElseV = Builder.CreateICmp(
+  Value *Else = Builder.CreateICmp(
       llvm::CmpInst::ICMP_NE, Cond,
       ConstantInt::get(Type::getInt1Ty(Context), 1, false), "ifcond");
-  Value *Else = If.getElseBranch()->getBlock()->accept(*this);
-  if (!Else)
-    Diagnostic(Module->getModuleIdentifier()).semanticError("lul");
+  if (auto ElseBlock = If.getElseBranch()->getBlock())
+    ElseBlock->accept(*this);
+  else
+    Diagnostic(Module->getModuleIdentifier()).semanticError("empty else block");
 
   Builder.CreateBr(MergeBB);
   ElseBB = Builder.GetInsertBlock();
@@ -231,8 +233,7 @@ Value *IRBuilder::visit(ast::IfExpr &If) {
   PHINode *PN = Builder.CreatePHI(Type::getInt1Ty(Context), 2, "iftmp");
 
   PN->addIncoming(Cond, ThenBB);
-
-  PN->addIncoming(ElseV, (BasicBlock *)Else);
+  PN->addIncoming(Else, ElseBB);
 
   return PN;
 }
@@ -303,7 +304,10 @@ Value *IRBuilder::visit(ast::StructInitExpr &Struct) {
                             AllocSize);
 }
 
-Value *IRBuilder::visit(ast::OpenStmt &) { return nullptr; }
+Value *IRBuilder::visit(ast::OpenStmt &O) {
+  // FunctionImporter FI(Module.get()->getProfileSummary(), );
+  return nullptr;
+}
 
 Value *IRBuilder::visit(ast::BlockStmt &Block) {
   type::Scope Scope(CurrentScope, Module.get());

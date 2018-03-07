@@ -44,11 +44,6 @@ Token Parser::peekToken() {
   return Buf[1].Type;
 }
 
-void Parser::cleanBuf() {
-  if (Buf[1].Type == Token::Indent || Buf[1].Type == Token::Dedent)
-    Peeked = false;
-}
-
 bool Parser::match(Token With) {
   if (peekToken() == With) {
     nextToken();
@@ -733,7 +728,6 @@ ast::BlockStmt *Parser::parseBlockStmt() {
   if (!Lex.getIndentLevel()) {
     Lex.turnFlag(Lexer::IndentationSensitive, false);
     LastIfNode = nullptr;
-    cleanBuf();
   }
 
   return Block;
