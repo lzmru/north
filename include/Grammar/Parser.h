@@ -75,6 +75,7 @@ private:
   ast::ForExpr *parseForExpr();
   ast::WhileExpr *parseWhileExpr();
   ast::RangeExpr *parseRangeExpr();
+  ast::ArrayExpr *parseArrayExpr();
 
   ast::FunctionDecl *parseFunctionDecl();
   ast::FunctionDecl *parseFunctionSignature();

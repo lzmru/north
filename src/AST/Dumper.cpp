@@ -242,12 +242,6 @@ llvm::Value *Dumper::visit(RangeDecl &Ranges) {
   return nullptr;
 }
 
-llvm::Value *Dumper::visit(ArrayDecl &Decl) {
-  NodePrinter Node("ArrayDecl", Decl);
-
-  return nullptr;
-}
-
 llvm::Value *Dumper::visit(TypeDef &Def) {
   NodePrinter Node("TypeDef", Def);
   Node.printField("Identifier");
@@ -387,6 +381,15 @@ llvm::Value *Dumper::visit(ast::StructInitExpr &Struct) {
 
   for (auto FieldVal : Struct.getValues())
     FieldVal->accept(*this);
+
+  return nullptr;
+}
+
+llvm::Value *Dumper::visit(ast::ArrayExpr &Array) {
+  NodePrinter Node("ArrayExpr", Array);
+
+  for (auto Val : Array.getValues())
+    Val->accept(*this);
 
   return nullptr;
 }

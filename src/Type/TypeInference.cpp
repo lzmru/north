@@ -51,8 +51,6 @@ llvm::Value *InferenceVisitor::visit(ast::TupleDecl &) { return nullptr; }
 
 llvm::Value *InferenceVisitor::visit(ast::RangeDecl &) { return nullptr; }
 
-llvm::Value *InferenceVisitor::visit(ast::ArrayDecl &) { return nullptr; }
-
 llvm::Value *InferenceVisitor::visit(ast::TypeDef &) { return nullptr; }
 
 llvm::Value *InferenceVisitor::visit(ast::UnaryExpr &) { return nullptr; }
@@ -90,6 +88,11 @@ llvm::Value *InferenceVisitor::visit(ast::AssignExpr &) { return nullptr; }
 
 llvm::Value *InferenceVisitor::visit(ast::StructInitExpr &) { return nullptr; }
 
+llvm::Value *InferenceVisitor::visit(ast::ArrayExpr &Array) {
+  return new TypedValue(llvm::ArrayType::get(
+      type::inferExprType(Array.getValue(0), Mod)->toIR(Mod), Array.getCap()));
+}
+
 llvm::Value *InferenceVisitor::visit(ast::OpenStmt &) { return nullptr; }
 
 llvm::Value *InferenceVisitor::visit(ast::BlockStmt &) { return nullptr; }
@@ -116,6 +119,17 @@ Type *inferFunctionType(ast::FunctionDecl &Fn, Module *Mod) {
 Type *inferVarType(ast::VarDecl &Var, Module *Mod) {
   auto Visitor = detail::InferenceVisitor(Mod);
   auto Type = Var.getValue()->accept(Visitor);
+
+  if (Type->getValueID() == 0)
+    return Mod->getType(static_cast<detail::NamedValue *>(Type)->Name);
+  else
+    return new type::Type(
+        static_cast<detail::TypedValue *>(Type)->Type); // FIXME
+}
+
+Type *inferExprType(ast::Node *Expr, Module *Mod) {
+  auto Visitor = detail::InferenceVisitor(Mod);
+  auto Type = Expr->accept(Visitor);
 
   if (Type->getValueID() == 0)
     return Mod->getType(static_cast<detail::NamedValue *>(Type)->Name);

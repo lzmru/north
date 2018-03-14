@@ -59,9 +59,7 @@ int main(int argc, const char *argv[]) {
     north::ir::IRBuilder IR(Module);
     applyVisitor(IR, Module);
 
-    if (verifyModule(*Module, &outs())) {
-      outs() << "\nInvalid module\n\n";
-    }
+    verifyModule(*Module, &outs());
 
     llvm::outs() << *Module;
 

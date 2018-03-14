@@ -28,6 +28,8 @@
 
 namespace north::ir {
 
+#define M Module.get()
+
 using namespace llvm;
 
 llvm::LLVMContext IRBuilder::Context;
@@ -37,7 +39,7 @@ Value *IRBuilder::visit(ast::FunctionDecl &Fn) {
     return nullptr;
   auto BB = BasicBlock::Create(Context, "entry", Fn.getIRValue());
   Builder.SetInsertPoint(BB);
-  // type::inferFunctionType(Fn, Module.get());
+  // inferFunctionType(Fn, M);
   return Fn.getBlockStmt()->accept(*this);
 }
 
@@ -52,11 +54,11 @@ Value *IRBuilder::visit(ast::VarDecl &Var) {
   llvm::Type *Type = nullptr;
 
   if (auto TypeDecl = Var.getType()) {
-    Type = Module->getType(Var.getType()->getIdentifier())->toIR(Module.get());
+    Type = Module->getType(Var.getType()->getIdentifier())->toIR(M);
     if (TypeDecl->isPtr())
       Type = Type->getPointerTo(0);
   } else {
-    Type = type::inferVarType(Var, Module.get())->toIR(Module.get());
+    Type = inferVarType(Var, M)->toIR(M);
     Var.setIRType(Type);
   }
 
@@ -74,14 +76,14 @@ Value *IRBuilder::visit(ast::AliasDecl &Alias) {
   return nullptr;
   // return llvm::GlobalAlias::create(Builder.getVoidTy(), 0,
   //                                 GlobalValue::LinkageTypes::ExternalLinkage,
-  //                                 Alias.getIdentifier(), Module.get());
+  //                                 Alias.getIdentifier(), M);
 }
 
 Value *IRBuilder::visit(ast::StructDecl &Struct) {
   std::vector<llvm::Type *> Args;
   for (auto Field : Struct.getFieldList()) {
     auto Ident = Field->getType()->getIdentifier();
-    Args.push_back(Module->getType(Ident)->toIR(Module.get()));
+    Args.push_back(Module->getType(Ident)->toIR(M));
   }
   Struct.getIR()->setBody(Args);
   return nullptr;
@@ -95,10 +97,6 @@ Value *IRBuilder::visit(ast::EnumDecl &Enum) {
 Value *IRBuilder::visit(ast::UnionDecl &) { return nullptr; }
 Value *IRBuilder::visit(ast::TupleDecl &) { return nullptr; }
 Value *IRBuilder::visit(ast::RangeDecl &) { return nullptr; }
-Value *IRBuilder::visit(ast::ArrayDecl &) {
-  llvm::outs() << "ew\n";
-  return nullptr;
-}
 
 Value *IRBuilder::visit(ast::TypeDef &Type) {
   return Type.getTypeDecl()->accept(*this);
@@ -291,35 +289,46 @@ Value *IRBuilder::visit(ast::AssignExpr &) {
 }
 
 Value *IRBuilder::visit(ast::StructInitExpr &Struct) {
-  auto Ty = type::Type::Int8->toIR(Module.get());
-  Constant *AllocSize = ConstantExpr::getSizeOf(
-      Module->getType(Struct.getTypeName())->toIR(Module.get()));
+  auto Ty = type::Type::Int8->toIR(M);
+  Constant *AllocSize =
+      ConstantExpr::getSizeOf(Module->getType(Struct.getTypeName())->toIR(M));
   // AllocSize = ConstantExpr::getTruncOrBitCast(
-  //    AllocSize, type::Type::Int64->toIR(Module.get()));
+  //    AllocSize, Type::Int64->toIR(M));
 
-  auto FTy = FunctionType::get(Ty->getPointerTo(0),
-                               type::Type::Int64->toIR(Module.get()), false);
+  auto FTy =
+      FunctionType::get(Ty->getPointerTo(0), type::Type::Int64->toIR(M), false);
 
   return Builder.CreateCall(Module->getOrInsertFunction("malloc", FTy),
                             AllocSize);
 }
 
+Value *IRBuilder::visit(ast::ArrayExpr &Array) {
+  auto ElemTy = type::inferExprType(Array.getValue(0), M)->toIR(M);
+  auto Ty = ArrayType::get(ElemTy, Array.getCap());
+
+  std::vector<Constant *> Values;
+  Values.reserve(Array.getCap());
+  for (auto I : Array.getValues())
+    Values.push_back(
+        static_cast<Constant *>(I->accept(*this))); // FIXME: check types
+
+  return ConstantArray::get(Ty, Values);
+}
+
 Value *IRBuilder::visit(ast::OpenStmt &O) {
-  // FunctionImporter FI(Module.get()->getProfileSummary(), );
+  // FunctionImporter FI(M->getProfileSummary(), );
   return nullptr;
 }
 
 Value *IRBuilder::visit(ast::BlockStmt &Block) {
-  type::Scope Scope(CurrentScope, Module.get());
+  type::Scope Scope(CurrentScope, M);
   CurrentScope = &Scope;
 
   Value *Result = nullptr;
 
   if (auto Body = Block.getBody()) {
-    for (auto CurrentLine = Body->begin(), End = Body->end();
-         CurrentLine != End; ++CurrentLine) {
-      Result = CurrentLine->accept(*this);
-    }
+    for (auto I = Body->begin(), E = Body->end(); I != E; ++I)
+      Result = I->accept(*this);
   }
 
   CurrentScope = Scope.getParent();

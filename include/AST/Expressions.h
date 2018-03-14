@@ -116,7 +116,7 @@ public:
 
   IfExpr *getElseBranch() { return ElseBranch.get(); }
   void setElseBranch(IfExpr *NewExpr) { ElseBranch.reset(NewExpr); }
-  bool hasElse() { return ElseBranch.get();}
+  bool hasElse() { return ElseBranch.get(); }
 
   AST_NODE(IfExpr)
 };
@@ -195,6 +195,21 @@ public:
   llvm::StringRef getTypeName() { return Identifier; }
 
   AST_NODE(StructInitExpr)
+};
+
+class ArrayExpr : public Node {
+  std::vector<Node *> Values;
+
+public:
+  explicit ArrayExpr(const TokenInfo &LBracket)
+      : Node(LBracket.Pos, AST_ArrayExpr) {}
+
+  void addValue(Node *Val) { Values.push_back(Val); }
+  llvm::ArrayRef<Node *> getValues() { return Values; }
+  Node *getValue(size_t Idx) { return Values[Idx]; }
+  size_t getCap() { return Values.size(); }
+
+  AST_NODE(ArrayExpr)
 };
 
 } // namespace north::ast

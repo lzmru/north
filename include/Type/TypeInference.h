@@ -19,6 +19,7 @@ class Module;
 
 Type *inferFunctionType(ast::FunctionDecl &, Module *);
 Type *inferVarType(ast::VarDecl &, Module *);
+Type *inferExprType(ast::Node *Expr, Module *Mod);
 
 namespace detail {
 

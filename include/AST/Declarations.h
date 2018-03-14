@@ -233,17 +233,6 @@ public:
   AST_NODE(RangeDecl)
 };
 
-class ArrayDecl : public GenericDecl {
-  unsigned Length;
-
-public:
-  explicit ArrayDecl(const Position &Pos, llvm::StringRef Identifier,
-                     unsigned Len = 0, Modifier Mods = Modifier::None)
-      : GenericDecl(Pos, AST_ArrayDecl, Identifier, Mods) {}
-
-  AST_NODE(ArrayDecl)
-};
-
 class TypeDef : public GenericDecl {
   std::unique_ptr<GenericDecl> Type;
 

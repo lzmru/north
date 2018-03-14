@@ -32,6 +32,7 @@ class ForExpr;
 class WhileExpr;
 class AssignExpr;
 class StructInitExpr;
+class ArrayExpr;
 
 class OpenStmt;
 class BlockStmt;
@@ -60,7 +61,8 @@ public:
   virtual llvm::Value *visit(ForExpr &) { return nullptr; }
   virtual llvm::Value *visit(WhileExpr &) { return nullptr; }
   virtual llvm::Value *visit(AssignExpr &) { return nullptr; }
-  virtual llvm::Value *visit(ast::StructInitExpr &) { return nullptr; }
+  virtual llvm::Value *visit(StructInitExpr &) { return nullptr; }
+  virtual llvm::Value *visit(ArrayExpr &) { return nullptr; }
 
   virtual llvm::Value *visit(OpenStmt &) { return nullptr; }
   virtual llvm::Value *visit(BlockStmt &) { return nullptr; }
@@ -77,7 +79,6 @@ public:
   llvm::Value *visit(ast::UnionDecl &) override;                               \
   llvm::Value *visit(ast::TupleDecl &) override;                               \
   llvm::Value *visit(ast::RangeDecl &) override;                               \
-  llvm::Value *visit(ast::ArrayDecl &) override;                               \
   llvm::Value *visit(ast::TypeDef &) override;                                 \
   llvm::Value *visit(ast::UnaryExpr &) override;                               \
   llvm::Value *visit(ast::BinaryExpr &) override;                              \
@@ -91,7 +92,8 @@ public:
   llvm::Value *visit(ast::OpenStmt &) override;                                \
   llvm::Value *visit(ast::BlockStmt &) override;                               \
   llvm::Value *visit(ast::ReturnStmt &) override;                              \
-  llvm::Value *visit(ast::StructInitExpr &) override;
+  llvm::Value *visit(ast::StructInitExpr &) override;                          \
+  llvm::Value *visit(ast::ArrayExpr &) override;
 
 } // namespace north::ast
 

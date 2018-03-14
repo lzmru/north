@@ -14,7 +14,6 @@ namespace north::ast {
 enum NodeKind {
   AST_TypeDef,
 
-  AST_ArrayDecl,
   AST_AliasDecl,
   AST_StructDecl,
   AST_UnionDecl,
@@ -36,6 +35,7 @@ enum NodeKind {
   AST_WhileExpr,
   AST_AssignExpr,
   AST_StructInitExpr,
+  AST_ArrayExpr,
 
   AST_OpenStmt,
   AST_BlockStmt,

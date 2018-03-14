@@ -55,7 +55,7 @@ bool Parser::match(Token With) {
 void Parser::expect(Token What) {
   if (!match(What)) {
     nextToken();
-    throw std::runtime_error("qwe");
+    // throw std::runtime_error("qwe");
     Diagnostic(Filename).expectedToken(What, Buf[0]);
   }
 }
@@ -418,6 +418,7 @@ ast::InterfaceDecl *Parser::parseInterfaceDecl() {
   expect(Token::Assign);
 
   Lex.incrementIndentLevel();
+  Lex.turnFlag(Lexer::IndentationSensitive, true);
 
   while (match(Token::Indent)) {
     expect(Token::Def);
@@ -426,6 +427,7 @@ ast::InterfaceDecl *Parser::parseInterfaceDecl() {
 
   expect(Token::Dedent);
   Lex.decrementIndentLevel();
+  Lex.turnFlag(Lexer::IndentationSensitive, false);
 
   return Interface;
 }
@@ -463,10 +465,9 @@ ast::Node *Parser::parsePrefix() {
     return parseIfExpr();
 
   case Token::Else:
-    if (!LastIfNode) {
+    if (!LastIfNode)
       Diagnostic(Module->getModuleIdentifier())
           .semanticError("else without if");
-    }
     LastIfNode->setElseBranch(parseIfExpr(true));
     LastIfNode = LastIfNode->getElseBranch();
     ExpectNull = true;
@@ -485,6 +486,9 @@ ast::Node *Parser::parsePrefix() {
     Res = parseExpression();
     expect(Token::RParen);
     return Res;
+
+  case Token::LBracket:
+    return parseArrayExpr();
 
   default:
     return nullptr;
@@ -633,6 +637,23 @@ ast::RangeExpr *Parser::parseRangeExpr() {
     Diagnostic(Filename).invalidRangeExpr(Buf[0]);
 
   return Range;
+}
+
+/// arrayExpr = '[' expr { ',' expr } ']';
+ast::ArrayExpr *Parser::parseArrayExpr() {
+  auto Array = new ast::ArrayExpr(Buf[0]);
+
+  while (auto Val = parseExpression()) {
+    Array->addValue(Val);
+    if (!match(Token::Comma))
+      break;
+  }
+  expect(Token::RBracket);
+
+  if (!Array->getCap())
+    Diagnostic(Filename).semanticError("empty array");
+
+  return Array;
 }
 
 /// functionDecl = functionSignature [':' blockStmt];
