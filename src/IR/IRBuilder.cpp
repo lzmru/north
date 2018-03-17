@@ -19,6 +19,7 @@
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Type.h>
+#include <llvm/IR/ValueSymbolTable.h>
 #include <llvm/IR/Verifier.h>
 #include <llvm/Transforms/IPO/FunctionImport.h>
 
@@ -40,17 +41,13 @@ Value *IRBuilder::visit(ast::FunctionDecl &Fn) {
   auto BB = BasicBlock::Create(Context, "entry", Fn.getIRValue());
   Builder.SetInsertPoint(BB);
   // inferFunctionType(Fn, M);
+  CurrentFn = &Fn;
   return Fn.getBlockStmt()->accept(*this);
 }
 
 Value *IRBuilder::visit(ast::InterfaceDecl &) { return nullptr; }
 
 Value *IRBuilder::visit(ast::VarDecl &Var) {
-  // TODO: Register local variables for tracing
-  // if (IndentLevel) {
-  //
-  // }
-
   llvm::Type *Type = nullptr;
 
   if (auto TypeDecl = Var.getType()) {
@@ -58,7 +55,7 @@ Value *IRBuilder::visit(ast::VarDecl &Var) {
     if (TypeDecl->isPtr())
       Type = Type->getPointerTo(0);
   } else {
-    Type = inferVarType(Var, M)->toIR(M);
+    Type = inferVarType(Var, M, CurrentScope)->toIR(M);
     Var.setIRType(Type);
   }
 
@@ -66,8 +63,9 @@ Value *IRBuilder::visit(ast::VarDecl &Var) {
   Var.setIRValue(IR);
   CurrentScope->addElement(&Var);
 
-  if (auto Val = Var.getValue())
+  if (auto Val = Var.getValue()) {
     Builder.CreateStore(Val->accept(*this), IR);
+  }
 
   return nullptr;
 }
@@ -89,11 +87,7 @@ Value *IRBuilder::visit(ast::StructDecl &Struct) {
   return nullptr;
 }
 
-Value *IRBuilder::visit(ast::EnumDecl &Enum) {
-  // TODO: check and generate
-  return nullptr;
-}
-
+Value *IRBuilder::visit(ast::EnumDecl &Enum) { return nullptr; }
 Value *IRBuilder::visit(ast::UnionDecl &) { return nullptr; }
 Value *IRBuilder::visit(ast::TupleDecl &) { return nullptr; }
 Value *IRBuilder::visit(ast::RangeDecl &) { return nullptr; }
@@ -137,7 +131,6 @@ Value *IRBuilder::visit(ast::BinaryExpr &Expr) {
 
   case Token::LessThan:
     return Builder.CreateICmpULT(LHS, RHS, "cmptmp");
-    // return Builder.CreateUIToFP(LHS, Type::getDoubleTy(Context), "booltmp");
   }
 
   return nullptr;
@@ -164,23 +157,24 @@ Value *IRBuilder::visit(ast::LiteralExpr &Literal) {
 Value *IRBuilder::visit(ast::RangeExpr &) { return nullptr; }
 
 Value *IRBuilder::visit(ast::CallExpr &Callee) {
-  Function *Function = Module->getFunction(Callee.getIdentifier());
-  if (!Function)
+  auto Fn = Module->getFunction(Callee.getIdentifier());
+  if (!Fn)
     Diagnostic(Module->getModuleIdentifier())
         .semanticError("unknown function referenced");
 
-  if (Callee.numberOfArgs() != Function->arg_size() && !Function->isVarArg())
+  if (Callee.numberOfArgs() != Fn->arg_size() && !Fn->isVarArg())
     Diagnostic(Module->getModuleIdentifier())
         .semanticError(formatv("expected {0} arguments, not {1}",
-                               Callee.numberOfArgs(), Function->arg_size()));
+                               Callee.numberOfArgs(), Fn->arg_size()));
 
   std::vector<Value *> Args;
-  Args.reserve(Callee.numberOfArgs() - 1);
-  for (auto &Arg : Callee.getArgumentList())
-    Args.push_back(Arg->accept(*this));
+  if (Callee.hasArgs()) {
+    Args.reserve(Callee.numberOfArgs() - 1);
+    for (auto &Arg : Callee.getArgumentList())
+      Args.push_back(Arg->accept(*this));
+  }
 
-  return Builder.CreateCall(Function->getFunctionType(), Function, Args,
-                            "calltmp");
+  return Builder.CreateCall(Fn->getFunctionType(), Fn, Args, "calltmp");
 }
 
 Value *IRBuilder::visit(ast::IfExpr &If) {
@@ -256,62 +250,67 @@ Value *IRBuilder::visit(ast::ForExpr &For) {
   PHINode *Variable = Builder.CreatePHI(Type::getInt32Ty(Context), 2, VarName);
   Variable->addIncoming(StartVal, PreheaderBB);
 
-  // Emit the body of the loop. This, like any other expr, can change the
-  // current BB.  Note that we ignore the value computed by the body, but don't
-  // allow an error.
   auto Body = For.getBlock()->accept(*this);
   Value *StepVal = ConstantInt::get(Context, APInt(32, 1));
   auto NextVar = Builder.CreateAdd(Variable, StepVal, "nextvar");
 
   Value *Cond = Builder.CreateICmpNE(StartVal, EndVal, "loopcond");
 
-  // Create the "after loop" block and insert it.
   BasicBlock *LoopEndBB = Builder.GetInsertBlock();
   BasicBlock *AfterBB = BasicBlock::Create(Context, "afterloop", Fn);
 
-  // Insert the conditional branch into the end of LoopEndBB.
   Builder.CreateCondBr(Cond, LoopBB, AfterBB);
-
-  // Any new code will be inserted in AfterBB.
   Builder.SetInsertPoint(AfterBB);
 
-  // Add a new entry to the PHI node for the backedge.
   Variable->addIncoming(NextVar, LoopEndBB);
 
-  // for expr always returns 0.0.
   return Constant::getNullValue(Type::getInt32Ty(Context));
 }
 
 Value *IRBuilder::visit(ast::WhileExpr &) { return nullptr; }
-Value *IRBuilder::visit(ast::AssignExpr &) {
-  llvm::outs() << "assignExpr\n";
-  return nullptr;
-}
+Value *IRBuilder::visit(ast::AssignExpr &) { return nullptr; }
 
 Value *IRBuilder::visit(ast::StructInitExpr &Struct) {
-  auto Ty = type::Type::Int8->toIR(M);
+  /*
+   * auto Ty = type::Type::Int8->toIR(M);
   Constant *AllocSize =
       ConstantExpr::getSizeOf(Module->getType(Struct.getTypeName())->toIR(M));
-  // AllocSize = ConstantExpr::getTruncOrBitCast(
-  //    AllocSize, Type::Int64->toIR(M));
+  // AllocSize = ConstantExpr::getTruncOrBitCast(AllocSize,
+  // Type::Int64->toIR(M));
 
   auto FTy =
       FunctionType::get(Ty->getPointerTo(0), type::Type::Int64->toIR(M), false);
 
-  return Builder.CreateCall(Module->getOrInsertFunction("malloc", FTy),
+
+  return Builder.Call(Module->getOrInsertFunction("malloc", FTy),
                             AllocSize);
+                            */
+  auto Ty = Module->getType(Struct.getTypeName());
+
+  std::vector<Constant *> Fields;
+  for (auto Field : Struct.getValues())
+    Fields.push_back(static_cast<Constant *>(Field->accept(*this)));
+
+  return ConstantStruct::get(static_cast<StructType *>(Ty->toIR(M)), Fields);
 }
 
 Value *IRBuilder::visit(ast::ArrayExpr &Array) {
-  auto ElemTy = type::inferExprType(Array.getValue(0), M)->toIR(M);
-  auto Ty = ArrayType::get(ElemTy, Array.getCap());
+  auto FirstElemTy =
+      type::inferExprType(Array.getValue(0), M, CurrentScope)->toIR(M);
+  auto Ty = ArrayType::get(FirstElemTy, Array.getCap());
 
   std::vector<Constant *> Values;
   Values.reserve(Array.getCap());
-  for (auto I : Array.getValues())
-    Values.push_back(
-        static_cast<Constant *>(I->accept(*this))); // FIXME: check types
 
+  for (auto I : Array.getValues()) {
+    auto Elem = I->accept(*this);
+    if (Elem->getType() != FirstElemTy &&
+        !CastInst::isCastable(Elem->getType(), FirstElemTy))
+      Diagnostic(Module->getModuleIdentifier())
+          .semanticError("array elements can't has different types");
+
+    Values.push_back(static_cast<Constant *>(Elem));
+  }
   return ConstantArray::get(Ty, Values);
 }
 
@@ -323,6 +322,9 @@ Value *IRBuilder::visit(ast::OpenStmt &O) {
 Value *IRBuilder::visit(ast::BlockStmt &Block) {
   type::Scope Scope(CurrentScope, M);
   CurrentScope = &Scope;
+
+  for (auto Arg : CurrentFn->getArgumentList())
+    CurrentScope->addElement(Arg);
 
   Value *Result = nullptr;
 
@@ -336,7 +338,6 @@ Value *IRBuilder::visit(ast::BlockStmt &Block) {
 }
 
 Value *IRBuilder::visit(ast::ReturnStmt &Return) {
-  // TODO: type checking
   if (auto Expr = Return.getReturnExpr())
     return Builder.CreateRet(Expr->accept(*this));
   return Builder.CreateRetVoid();

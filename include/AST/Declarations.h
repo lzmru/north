@@ -177,6 +177,7 @@ public:
   bool hasArgs() const { return !Arguments.empty(); }
   llvm::ArrayRef<VarDecl *> getArgumentList() { return Arguments; }
   void addArgument(VarDecl *Argument) { Arguments.push_back(Argument); }
+  VarDecl *getArg(uint8_t N) { return Arguments[N]; }
 
   BlockStmt *getBlockStmt() { return Block.get(); }
   void setBlockStmt(BlockStmt *NewBlock) { Block.reset(NewBlock); }

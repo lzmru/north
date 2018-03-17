@@ -11,6 +11,7 @@
 #include "AST/AST.h"
 #include "Diagnostic.h"
 #include "Type/Module.h"
+#include "Type/Scope.h"
 #include "Type/Type.h"
 #include <llvm/ADT/StringMap.h>
 #include <llvm/Support/raw_ostream.h>
@@ -60,13 +61,16 @@ llvm::Value *InferenceVisitor::visit(ast::BinaryExpr &Binary) {
 }
 
 llvm::Value *InferenceVisitor::visit(ast::LiteralExpr &Literal) {
-  switch (Literal.getTokenInfo().Type) {
+  auto L = Literal.getTokenInfo();
+  switch (L.Type) {
   case Token::Char:
     return new NamedValue("char");
   case Token::Int:
     return new NamedValue("int");
   case Token::String:
     return new NamedValue("string");
+  case Token::Identifier:
+    return new TypedValue(CurrentScope->lookup(L.toString())->getIRType());
   }
 }
 
@@ -86,11 +90,14 @@ llvm::Value *InferenceVisitor::visit(ast::WhileExpr &) { return nullptr; }
 
 llvm::Value *InferenceVisitor::visit(ast::AssignExpr &) { return nullptr; }
 
-llvm::Value *InferenceVisitor::visit(ast::StructInitExpr &) { return nullptr; }
+llvm::Value *InferenceVisitor::visit(ast::StructInitExpr &SI) {
+  return new TypedValue(Mod->getType(SI.getTypeName())->toIR(Mod));
+}
 
 llvm::Value *InferenceVisitor::visit(ast::ArrayExpr &Array) {
-  return new TypedValue(llvm::ArrayType::get(
-      type::inferExprType(Array.getValue(0), Mod)->toIR(Mod), Array.getCap()));
+  auto ArrTy =
+      type::inferExprType(Array.getValue(0), Mod, CurrentScope)->toIR(Mod);
+  return new TypedValue(llvm::ArrayType::get(ArrTy, Array.getCap()));
 }
 
 llvm::Value *InferenceVisitor::visit(ast::OpenStmt &) { return nullptr; }
@@ -103,9 +110,10 @@ llvm::Value *InferenceVisitor::visit(ast::ReturnStmt &Return) {
 
 } // namespace detail
 
-Type *inferFunctionType(ast::FunctionDecl &Fn, Module *Mod) {
+Type *inferFunctionType(ast::FunctionDecl &Fn, Module *Mod,
+                        Scope *CurrentScope) {
   llvm::Value *Val = nullptr;
-  auto Visitor = detail::InferenceVisitor(Mod);
+  auto Visitor = detail::InferenceVisitor(Mod, CurrentScope);
   auto Body = Fn.getBlockStmt()->getBody();
 
   for (auto I = Body->begin(), E = Body->end(); I != E; ++I) {
@@ -116,8 +124,8 @@ Type *inferFunctionType(ast::FunctionDecl &Fn, Module *Mod) {
   return Mod->getType(static_cast<detail::NamedValue *>(Val)->Name);
 }
 
-Type *inferVarType(ast::VarDecl &Var, Module *Mod) {
-  auto Visitor = detail::InferenceVisitor(Mod);
+Type *inferVarType(ast::VarDecl &Var, Module *Mod, Scope *CurrentScope) {
+  auto Visitor = detail::InferenceVisitor(Mod, CurrentScope);
   auto Type = Var.getValue()->accept(Visitor);
 
   if (Type->getValueID() == 0)
@@ -127,8 +135,8 @@ Type *inferVarType(ast::VarDecl &Var, Module *Mod) {
         static_cast<detail::TypedValue *>(Type)->Type); // FIXME
 }
 
-Type *inferExprType(ast::Node *Expr, Module *Mod) {
-  auto Visitor = detail::InferenceVisitor(Mod);
+Type *inferExprType(ast::Node *Expr, Module *Mod, Scope *CurrentScope) {
+  auto Visitor = detail::InferenceVisitor(Mod, CurrentScope);
   auto Type = Expr->accept(Visitor);
 
   if (Type->getValueID() == 0)

@@ -25,13 +25,14 @@ class IRBuilder : public ast::Visitor {
   llvm::IRBuilder<> Builder;
   std::unique_ptr<north::type::Module> Module;
   type::Scope *CurrentScope;
+  ast::FunctionDecl *CurrentFn;
 
   static llvm::LLVMContext Context;
 
 public:
   explicit IRBuilder(north::type::Module *Module)
       : Builder(Context), Module(Module),
-        CurrentScope(Module->getGlobalScope()) {}
+        CurrentScope(Module->getGlobalScope()), CurrentFn(nullptr) {}
 
   static llvm::LLVMContext &getContext() { return Context; }
   llvm::Module *getModule() { return Module.get(); }

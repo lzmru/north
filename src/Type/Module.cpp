@@ -92,9 +92,10 @@ void Module::addFunction(north::ast::FunctionDecl *Fn) {
 
   if (Fn->hasArgs()) {
     std::vector<llvm::Type *> ArgList;
-    ArgList.reserve(Fn->getArgumentList().size());
+    auto Args = Fn->getArgumentList();
+    ArgList.reserve(Args.size());
 
-    for (auto Arg : Fn->getArgumentList()) {
+    for (auto Arg : Args) {
       auto Argument = getType(Arg->getType()->getIdentifier())->toIR(this);
       ArgList.push_back(Arg->getType()->isPtr() ? Argument->getPointerTo(0)
                                                 : Argument);
@@ -105,8 +106,16 @@ void Module::addFunction(north::ast::FunctionDecl *Fn) {
     FnType = FunctionType::get(ResultType, Fn->isVarArg());
   }
 
-  Fn->setIRValue(
-      Function::Create(FnType, getLinkageType(Fn), Fn->getIdentifier(), this));
+  auto IR =
+      Function::Create(FnType, getLinkageType(Fn), Fn->getIdentifier(), this);
+
+  for (Argument &IrArg : IR->args()) {
+    auto AstArg = Fn->getArg(IrArg.getArgNo());
+    AstArg->setIRType(IrArg.getType());
+    AstArg->setIRValue(&IrArg);
+  }
+
+  Fn->setIRValue(IR);
 }
 
 } // namespace north::type
