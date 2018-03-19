@@ -71,6 +71,7 @@ private:
 
   ast::StructInitExpr *parseStructInitExpr(ast::Node *Ident);
   ast::CallExpr *parseCallExpr(ast::Node *Ident);
+  ast::ArrayIndexExpr *parseArrayIndexExpr(ast::Node *Ident);
   ast::IfExpr *parseIfExpr(bool isElse = false);
   ast::ForExpr *parseForExpr();
   ast::WhileExpr *parseWhileExpr();

@@ -27,6 +27,7 @@ class BinaryExpr;
 class LiteralExpr;
 class RangeExpr;
 class CallExpr;
+class ArrayIndexExpr;
 class IfExpr;
 class ForExpr;
 class WhileExpr;
@@ -57,6 +58,7 @@ public:
   virtual llvm::Value *visit(LiteralExpr &) { return nullptr; }
   virtual llvm::Value *visit(RangeExpr &) { return nullptr; }
   virtual llvm::Value *visit(CallExpr &) { return nullptr; }
+  virtual llvm::Value *visit(ArrayIndexExpr &) { return nullptr; }
   virtual llvm::Value *visit(IfExpr &) { return nullptr; }
   virtual llvm::Value *visit(ForExpr &) { return nullptr; }
   virtual llvm::Value *visit(WhileExpr &) { return nullptr; }
@@ -85,6 +87,7 @@ public:
   llvm::Value *visit(ast::LiteralExpr &) override;                             \
   llvm::Value *visit(ast::RangeExpr &) override;                               \
   llvm::Value *visit(ast::CallExpr &) override;                                \
+  llvm::Value *visit(ast::ArrayIndexExpr &) override;                          \
   llvm::Value *visit(ast::IfExpr &) override;                                  \
   llvm::Value *visit(ast::ForExpr &) override;                                 \
   llvm::Value *visit(ast::WhileExpr &) override;                               \

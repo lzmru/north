@@ -82,6 +82,10 @@ llvm::Value *InferenceVisitor::visit(ast::CallExpr &Callee) {
                             ->getReturnType());
 }
 
+llvm::Value *InferenceVisitor::visit(ast::ArrayIndexExpr &Idx) {
+  return new TypedValue(CurrentScope->lookup(Idx.getIdentifier())->getIRType());
+}
+
 llvm::Value *InferenceVisitor::visit(ast::IfExpr &) { return nullptr; }
 
 llvm::Value *InferenceVisitor::visit(ast::ForExpr &) { return nullptr; }

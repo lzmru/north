@@ -98,6 +98,25 @@ public:
   AST_NODE(CallExpr)
 };
 
+class ArrayIndexExpr : public Node {
+  llvm::StringRef Ident;
+  Node *IdxExpr;
+
+public:
+  explicit ArrayIndexExpr(Node *Identifier)
+      : Node(Identifier->getPosition(), AST_ArrayIndexExpr),
+        Ident(Identifier->getPosition().Offset,
+              Identifier->getPosition().Length) {}
+
+  void setIdxExpr(Node *Idx) { IdxExpr = Idx; }
+  Node *getIdxExpr() { return IdxExpr; }
+
+  void setIdentifier(llvm::StringRef NewIdent) { Ident = NewIdent; }
+  llvm::StringRef getIdentifier() { return Ident; }
+
+  AST_NODE(ArrayIndexExpr)
+};
+
 class IfExpr : public Node {
   NodePtr Expr;
   std::unique_ptr<BlockStmt> Block;

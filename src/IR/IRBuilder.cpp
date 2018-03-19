@@ -79,10 +79,12 @@ Value *IRBuilder::visit(ast::AliasDecl &Alias) {
 
 Value *IRBuilder::visit(ast::StructDecl &Struct) {
   std::vector<llvm::Type *> Args;
+
   for (auto Field : Struct.getFieldList()) {
     auto Ident = Field->getType()->getIdentifier();
     Args.push_back(Module->getType(Ident)->toIR(M));
   }
+
   Struct.getIR()->setBody(Args);
   return nullptr;
 }
@@ -102,10 +104,15 @@ Value *IRBuilder::visit(ast::UnaryExpr &Unary) {
     Diagnostic(Module->getModuleIdentifier())
         .semanticError("invalid expression");
 
+  /*
   if (Unary.getOperator() == Token::Minus) {
-    auto OldExpr = static_cast<ConstantInt *>(Expr);
-    return ConstantInt::get(OldExpr->getType(),
-                            *OldExpr->getValue().getRawData(), true);
+    auto Int = static_cast<ConstantInt *>(Expr);
+    return ConstantInt::get(Int->getType(),
+                            *Int->getValue().getRawData(), true);
+  }
+*/
+  if (Unary.getOperator() == Token::Mult) {
+    return Builder.CreateLoad(Expr);
   }
 
   return nullptr;
@@ -138,6 +145,7 @@ Value *IRBuilder::visit(ast::BinaryExpr &Expr) {
 
 Value *IRBuilder::visit(ast::LiteralExpr &Literal) {
   auto Token = Literal.getTokenInfo();
+  ast::VarDecl *V;
 
   switch (Token.Type) {
   case Token::Char:
@@ -148,7 +156,10 @@ Value *IRBuilder::visit(ast::LiteralExpr &Literal) {
   case Token::Int:
     return ConstantInt::get(Context, APInt(32, Token.toString(), 10));
   case Token::Identifier:
-    return CurrentScope->lookup(Token.toString())->getIRValue();
+    V = CurrentScope->lookup(Token.toString());
+    if (V->getIRType()->isPointerTy())
+      return Builder.CreateLoad(V->getIRType(), V->getIRValue());
+    return V->getIRValue();
   }
 
   return nullptr;
@@ -175,6 +186,19 @@ Value *IRBuilder::visit(ast::CallExpr &Callee) {
   }
 
   return Builder.CreateCall(Fn->getFunctionType(), Fn, Args, "calltmp");
+}
+
+llvm::Value *IRBuilder::visit(ast::ArrayIndexExpr &Idx) {
+  auto Ty = CurrentScope->lookup(Idx.getIdentifier());
+  auto Index = Idx.getIdxExpr()->accept(*this);
+
+  auto Z = llvm::ConstantInt::get(Context, llvm::APInt(64, 0, true));
+  auto I = Builder.CreateBitCast(Index, IntegerType::getInt64Ty(Context));
+
+  auto Ptr = llvm::GetElementPtrInst::Create(
+     Ty->getIRType(), Ty->getIRValue(), {Z, I}, "",
+     &CurrentFn->getIRValue()->getBasicBlockList().back());
+  return Builder.CreateLoad(Ptr);
 }
 
 Value *IRBuilder::visit(ast::IfExpr &If) {
@@ -271,20 +295,6 @@ Value *IRBuilder::visit(ast::WhileExpr &) { return nullptr; }
 Value *IRBuilder::visit(ast::AssignExpr &) { return nullptr; }
 
 Value *IRBuilder::visit(ast::StructInitExpr &Struct) {
-  /*
-   * auto Ty = type::Type::Int8->toIR(M);
-  Constant *AllocSize =
-      ConstantExpr::getSizeOf(Module->getType(Struct.getTypeName())->toIR(M));
-  // AllocSize = ConstantExpr::getTruncOrBitCast(AllocSize,
-  // Type::Int64->toIR(M));
-
-  auto FTy =
-      FunctionType::get(Ty->getPointerTo(0), type::Type::Int64->toIR(M), false);
-
-
-  return Builder.Call(Module->getOrInsertFunction("malloc", FTy),
-                            AllocSize);
-                            */
   auto Ty = Module->getType(Struct.getTypeName());
 
   std::vector<Constant *> Fields;
@@ -311,6 +321,7 @@ Value *IRBuilder::visit(ast::ArrayExpr &Array) {
 
     Values.push_back(static_cast<Constant *>(Elem));
   }
+
   return ConstantArray::get(Ty, Values);
 }
 

@@ -30,6 +30,7 @@ enum NodeKind {
   AST_LiteralExpr,
   AST_RangeExpr,
   AST_CallExpr,
+  AST_ArrayIndexExpr,
   AST_IfExpr,
   AST_ForExpr,
   AST_WhileExpr,

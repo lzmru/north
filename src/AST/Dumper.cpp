@@ -312,6 +312,8 @@ llvm::Value *Dumper::visit(CallExpr &Callee) {
   return nullptr;
 }
 
+llvm::Value *Dumper::visit(ArrayIndexExpr &Callee) { return nullptr; }
+
 llvm::Value *Dumper::visit(IfExpr &If) {
   NodePrinter Node("IfExpr", If);
   Node.offOutIndent();

@@ -110,6 +110,12 @@ TokenInfo Lexer::makeToken(Token Tok, uint8_t Length) {
   return Result;
 }
 
+TokenInfo Lexer::makeEof() {
+  if (IndentLevel)
+    return TokenInfo{Pos, Token::Dedent};
+  return TokenInfo{Pos, Token::Eof};
+}
+
 uint8_t Lexer::checkIndentLevel() {
   uint8_t I = 0, NecessaryIndent = IndentLevel * 2;
 
@@ -187,7 +193,7 @@ __start:
     do {
       ++Pos.Length;
       if (Pos.Offset[Pos.Length] == '\0')
-        return makeToken(Token::Eof, 0);
+        return makeEof();
     } while (Pos.Offset[Pos.Length] != '"');
 
     ++Pos.Length;
@@ -213,7 +219,7 @@ __start:
     do {
       ++Pos.Length;
       if (Pos.Offset[Pos.Length] == '\0')
-        return makeToken(Token::Eof, 0);
+        return makeEof();
     } while (Pos.Offset[Pos.Length] != '\n');
 
     ++Pos.Length;
@@ -334,7 +340,7 @@ __start:
   }
 
   if (*Pos.Offset == '\0' || Pos.Offset >= BufferEnd)
-    return makeToken(Token::Eof, 0);
+    return makeEof();
   Diagnostic(Filename).unexpectedChar(Pos);
 }
 

@@ -214,7 +214,7 @@ north::type::Module *Parser::parse() {
       llvm::outs() << Buf[0].Pos.Line << ':' << Buf[0].Pos.Column
                    << " default: "
                    << llvm::StringRef(Buf[0].Pos.Offset, Buf[0].Pos.Length)
-                   << '\n';
+                   << " " << tokenToString(Buf[0].Type) << '\n';
       // return nullptr;
     }
   }
@@ -499,7 +499,8 @@ ast::Node *Parser::parseInfix(ast::Node *LHS) {
   switch (Buf[0].Type) {
   case Token::LParen:
     return parseCallExpr(LHS);
-    // case Token::LBracket:
+  case Token::LBracket:
+    return parseArrayIndexExpr(LHS);
     // case Token::Dot:
 
   case Token::LBrace:
@@ -555,7 +556,7 @@ ast::StructInitExpr *Parser::parseStructInitExpr(ast::Node *Ident) {
   return Expr;
 }
 
-/// callExpr ::= IDENTIFIER '(' expr { ',' expr } ')';
+/// callExpr = IDENTIFIER '(' expr { ',' expr } ')';
 ast::CallExpr *Parser::parseCallExpr(ast::Node *Ident) {
   auto Callee = new ast::CallExpr(Ident);
 
@@ -570,6 +571,19 @@ ast::CallExpr *Parser::parseCallExpr(ast::Node *Ident) {
   expect(Token::RParen);
 
   return Callee;
+}
+
+/// arrayIndexExpr = IDENTIFIER '[' expr ']';
+ast::ArrayIndexExpr *Parser::parseArrayIndexExpr(ast::Node *Ident) {
+  auto Idx = new ast::ArrayIndexExpr(Ident);
+
+  if (auto Expr = parseExpression())
+    Idx->setIdxExpr(Expr);
+  else
+    Diagnostic(Filename).semanticError("invalid array index");
+
+  expect(Token::RBracket);
+  return Idx;
 }
 
 /// forExpr = 'for' literalExpr 'in' expr ':' blockStmt;

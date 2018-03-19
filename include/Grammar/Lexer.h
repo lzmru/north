@@ -45,6 +45,7 @@ private:
   Token keywordOrIdentifier();
   TokenInfo makeToken(Token Type);
   TokenInfo makeToken(Token Type, uint8_t Length);
+  TokenInfo makeEof();
   uint8_t checkIndentLevel();
 };
 
