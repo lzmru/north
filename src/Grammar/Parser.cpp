@@ -456,6 +456,9 @@ ast::Node *Parser::parsePrefix() {
     return new ast::UnaryExpr(Buf[0], Buf[0].Type, parseExpression(Unary));
 
   case Token::Identifier:
+    if (peekToken() == Token::Dot)
+      return parseQualifiedIdentifier();
+
   case Token::Char:
   case Token::Int:
   case Token::String:
@@ -499,9 +502,9 @@ ast::Node *Parser::parseInfix(ast::Node *LHS) {
   switch (Buf[0].Type) {
   case Token::LParen:
     return parseCallExpr(LHS);
+
   case Token::LBracket:
     return parseArrayIndexExpr(LHS);
-    // case Token::Dot:
 
   case Token::LBrace:
     return parseStructInitExpr(LHS);
@@ -545,8 +548,7 @@ ast::Node *Parser::parseInfix(ast::Node *LHS) {
 
 /// structInitExpr = IDENTIFIER '{' expr { ',' expr } '}';
 ast::StructInitExpr *Parser::parseStructInitExpr(ast::Node *Ident) {
-  auto Expr = new ast::StructInitExpr(
-      static_cast<ast::LiteralExpr *>(Ident)); // TODO: check node type
+  auto Expr = new ast::StructInitExpr(Ident);
 
   do {
     Expr->addValue(parseExpression(Call));
@@ -584,6 +586,18 @@ ast::ArrayIndexExpr *Parser::parseArrayIndexExpr(ast::Node *Ident) {
 
   expect(Token::RBracket);
   return Idx;
+}
+
+/// qualifiedIdentifier = IDENTIFIER '.' IDENTIFIER { '.' IDENTIFIER };
+ast::QualifiedIdentifierExpr *Parser::parseQualifiedIdentifier() {
+  auto Ident = new ast::QualifiedIdentifierExpr(Buf[0]);
+
+  while (match(Token::Dot)) {
+    expect(Token::Identifier);
+    Ident->AddPart(Buf[0]);
+  }
+
+  return Ident;
 }
 
 /// forExpr = 'for' literalExpr 'in' expr ':' blockStmt;

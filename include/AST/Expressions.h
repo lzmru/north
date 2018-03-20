@@ -99,22 +99,36 @@ public:
 };
 
 class ArrayIndexExpr : public Node {
-  llvm::StringRef Ident;
+  Node *Ident;
   Node *IdxExpr;
 
 public:
   explicit ArrayIndexExpr(Node *Identifier)
-      : Node(Identifier->getPosition(), AST_ArrayIndexExpr),
-        Ident(Identifier->getPosition().Offset,
-              Identifier->getPosition().Length) {}
+      : Node(Identifier->getPosition(), AST_ArrayIndexExpr), Ident(Identifier) {
+  }
 
   void setIdxExpr(Node *Idx) { IdxExpr = Idx; }
   Node *getIdxExpr() { return IdxExpr; }
 
-  void setIdentifier(llvm::StringRef NewIdent) { Ident = NewIdent; }
-  llvm::StringRef getIdentifier() { return Ident; }
+  Node *getIdentifier() { return Ident; }
 
   AST_NODE(ArrayIndexExpr)
+};
+
+class QualifiedIdentifierExpr : public Node {
+  std::vector<TokenInfo> Ident;
+
+public:
+  explicit QualifiedIdentifierExpr(const TokenInfo &TkInfo)
+      : Node(TkInfo.Pos, AST_QualifiedIdentifierExpr) {
+    Ident.push_back(TkInfo);
+  }
+
+  llvm::ArrayRef<TokenInfo> getIdentifier() { return Ident; }
+  TokenInfo getPart(uint8_t I) { return Ident[I]; }
+  void AddPart(const TokenInfo &TkInfo) { Ident.push_back(TkInfo); }
+
+  AST_NODE(QualifiedIdentifierExpr)
 };
 
 class IfExpr : public Node {
@@ -201,17 +215,25 @@ public:
 };
 
 class StructInitExpr : public Node {
-  llvm::StringRef Identifier;
+  Node *Identifier;
   std::vector<Node *> Values;
+  StructDecl *Type;
+  llvm::Constant *IRValue;
 
 public:
-  explicit StructInitExpr(LiteralExpr *Ident)
-      : Node(Ident->getPosition(), AST_StructInitExpr),
-        Identifier(Ident->getTokenInfo().toString()) {}
+  explicit StructInitExpr(Node *Ident)
+      : Node(Ident->getPosition(), AST_StructInitExpr), Identifier(Ident),
+        Type(nullptr), IRValue(nullptr) {}
 
   void addValue(Node *Val) { Values.push_back(Val); }
   llvm::ArrayRef<Node *> getValues() { return Values; }
-  llvm::StringRef getTypeName() { return Identifier; }
+  Node *getIdentifier() { return Identifier; }
+
+  void setType(StructDecl *T) { Type = T; }
+  StructDecl *getType() { return Type; }
+
+  void setIRValue(llvm::Constant *Val) { IRValue = Val; }
+  llvm::Constant *getIRValue() { return IRValue; }
 
   AST_NODE(StructInitExpr)
 };

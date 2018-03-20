@@ -126,8 +126,7 @@ public:
 };
 
 class StructDecl : public GenericDecl {
-  using FieldList = std::vector<VarDecl *>;
-  FieldList Fields;
+  std::vector<VarDecl *> Fields;
   bool IsPacked;
   llvm::StructType *IRValue;
 
@@ -136,6 +135,7 @@ public:
       : GenericDecl(Pos, AST_StructDecl, ""), IsPacked(IsPacked) {}
 
   llvm::ArrayRef<VarDecl *> getFieldList() { return Fields; }
+  VarDecl *getField(uint8_t I) { return Fields[I]; }
   void addField(VarDecl *Field) { Fields.push_back(Field); }
 
   llvm::StructType *getIR() { return IRValue; }

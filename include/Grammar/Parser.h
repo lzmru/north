@@ -67,11 +67,12 @@ private:
 
   ast::Node *parseExpression(uint8_t Prec = 0);
   ast::Node *parsePrefix();
-  ast::Node *parseInfix(ast::Node *LHS);
+  ast::Node *parseInfix(ast::Node *);
 
-  ast::StructInitExpr *parseStructInitExpr(ast::Node *Ident);
+  ast::StructInitExpr *parseStructInitExpr(ast::Node *);
   ast::CallExpr *parseCallExpr(ast::Node *Ident);
-  ast::ArrayIndexExpr *parseArrayIndexExpr(ast::Node *Ident);
+  ast::ArrayIndexExpr *parseArrayIndexExpr(ast::Node *);
+  ast::QualifiedIdentifierExpr *parseQualifiedIdentifier();
   ast::IfExpr *parseIfExpr(bool isElse = false);
   ast::ForExpr *parseForExpr();
   ast::WhileExpr *parseWhileExpr();
@@ -80,15 +81,15 @@ private:
 
   ast::FunctionDecl *parseFunctionDecl();
   ast::FunctionDecl *parseFunctionSignature();
-  void parseArgumentList(ast::FunctionDecl *Function);
+  void parseArgumentList(ast::FunctionDecl *);
 
   ast::Node *parsePrimary();
   ast::BlockStmt *parseBlockStmt();
 
   ast::VarDecl *parseVarDecl();
 
-  void parseGenericTypeList(ast::GenericDecl *Declaration);
-  void parseGenericType(ast::GenericDecl *Declaration);
+  void parseGenericTypeList(ast::GenericDecl *);
+  void parseGenericType(ast::GenericDecl *);
 };
 
 } // namespace north

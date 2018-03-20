@@ -46,6 +46,13 @@ Type *Module::getType(llvm::StringRef Name) const {
       .semanticError("The type '" + Name + "' is undefined");
 }
 
+Type *Module::getTypeOrNull(llvm::StringRef Name) const {
+  auto res = TypeList.find(Name);
+  if (res != TypeList.end())
+    return res->second;
+  return nullptr;
+}
+
 Module::InterfaceDecl *Module::getInterface(llvm::StringRef Name) const {
   auto res = InterfaceList.find(Name);
   if (res != InterfaceList.end())

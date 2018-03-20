@@ -31,6 +31,7 @@ enum NodeKind {
   AST_RangeExpr,
   AST_CallExpr,
   AST_ArrayIndexExpr,
+  AST_QualifiedIdentifierExpr,
   AST_IfExpr,
   AST_ForExpr,
   AST_WhileExpr,

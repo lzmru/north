@@ -44,6 +44,7 @@ public:
   explicit Module(llvm::StringRef ModuleID, llvm::LLVMContext &C);
 
   Type *getType(llvm::StringRef Name) const;
+  Type *getTypeOrNull(llvm::StringRef Name) const;
   InterfaceDecl *getInterface(llvm::StringRef Name) const;
 
   void addType(north::ast::GenericDecl *);

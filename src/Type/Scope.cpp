@@ -17,7 +17,7 @@ namespace north::type {
 void Scope::addElement(north::ast::VarDecl *Var) {
   if (!Vars.try_emplace(Var->getIdentifier(), Var).second) {
     Diagnostic(Owner->getSourceFileName())
-        .semanticError("Duplicate definition of variable '" +
+        .semanticError("duplicate definition of variable '" +
                        Var->getIdentifier() + "'");
   }
 }

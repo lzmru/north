@@ -38,6 +38,9 @@ public:
   llvm::Module *getModule() { return Module.get(); }
 
   AST_WALKER_METHODS
+
+private:
+  type::Type *getTypeFromIdent(ast::Node *);
 };
 
 } // namespace north::ir

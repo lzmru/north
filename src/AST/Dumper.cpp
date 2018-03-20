@@ -24,15 +24,22 @@ class NodePrinter {
   static int Tab;
   bool In;
   static bool Out;
+  static bool OnlyData;
 
 public:
   explicit NodePrinter(const char *NodeName, const north::ast::Node &Node,
                        bool InIndent = true) {
     In = InIndent;
 
+    Tab++;
+    if (OnlyData)
+      return;
+
     if (Out)
       indent();
-    Tab++;
+
+    if (OnlyData)
+      return;
 
     outs().changeColor(raw_ostream::MAGENTA, true);
     outs() << NodeName << ' ';
@@ -43,9 +50,12 @@ public:
   explicit NodePrinter(const char *NodeName, bool InIndent = true) {
     In = InIndent;
 
+    Tab++;
+    if (OnlyData)
+      return;
+
     if (Out)
       indent();
-    Tab++;
 
     outs().changeColor(raw_ostream::YELLOW, true);
     outs() << NodeName;
@@ -55,6 +65,10 @@ public:
   ~NodePrinter() {
     --Tab;
     Out = true;
+    if (OnlyData) {
+      OnlyData = false;
+      return;
+    }
     if (In)
       indent();
     outs() << (!In ? " ]\n" : "]\n");
@@ -62,6 +76,8 @@ public:
 
   void offOutIndent() { Out = false; }
   void onOutIndent() { Out = true; }
+
+  void printOnlyData() { OnlyData = true; }
 
   void indent() { outs().indent(Tab * 2); }
 
@@ -96,6 +112,16 @@ public:
     }
   }
 
+  void printArgumentList(CallExpr &Func) {
+    NodePrinter Node("Arguments");
+    int i = 0;
+
+    for (auto Arg : Func.getArgumentList()) {
+      Dumper Dump;
+      Arg->accept(Dump);
+    }
+  }
+
   raw_ostream &printPos(const north::Position &Pos) {
     outs().resetColor() << '(';
     outs().changeColor(raw_ostream::RED) << Pos.Line;
@@ -107,7 +133,7 @@ public:
     return outs();
   }
 
-  raw_ostream &printIdentifier(const llvm::StringRef Identifier) {
+  raw_ostream &printIdentifier(const StringRef Identifier) {
     outs().changeColor(raw_ostream::CYAN) << Identifier;
     return outs().resetColor();
   }
@@ -115,12 +141,13 @@ public:
 
 int NodePrinter::Tab = 0;
 bool NodePrinter::Out = true;
+bool NodePrinter::OnlyData = false;
 
 } // namespace
 
 namespace north::ast {
 
-llvm::Value *Dumper::visit(FunctionDecl &Func) {
+Value *Dumper::visit(FunctionDecl &Func) {
   NodePrinter Node("FunctionDecl", Func);
 
   Node.printField("Name");
@@ -143,7 +170,7 @@ llvm::Value *Dumper::visit(FunctionDecl &Func) {
   return nullptr;
 }
 
-llvm::Value *Dumper::visit(InterfaceDecl &Interface) {
+Value *Dumper::visit(InterfaceDecl &Interface) {
   NodePrinter Node("InterfaceDecl", Interface);
 
   Node.printField("Name") << Interface.getIdentifier() << '\n';
@@ -162,7 +189,7 @@ llvm::Value *Dumper::visit(InterfaceDecl &Interface) {
   return nullptr;
 }
 
-llvm::Value *Dumper::visit(VarDecl &Var) {
+Value *Dumper::visit(VarDecl &Var) {
   NodePrinter Node("VarDecl", Var);
 
   Node.printField("Name") << Var.getIdentifier() << ",\n";
@@ -182,7 +209,7 @@ llvm::Value *Dumper::visit(VarDecl &Var) {
   return nullptr;
 }
 
-llvm::Value *Dumper::visit(AliasDecl &Alias) {
+Value *Dumper::visit(AliasDecl &Alias) {
   NodePrinter Node("AliasDecl", Alias, false);
 
   Node.printIdentifier(Alias.getIdentifier());
@@ -192,7 +219,7 @@ llvm::Value *Dumper::visit(AliasDecl &Alias) {
   return nullptr;
 }
 
-llvm::Value *Dumper::visit(StructDecl &Struct) {
+Value *Dumper::visit(StructDecl &Struct) {
   NodePrinter Node("StructDecl", Struct);
 
   for (const auto &Field : Struct.getFieldList())
@@ -201,7 +228,7 @@ llvm::Value *Dumper::visit(StructDecl &Struct) {
   return nullptr;
 }
 
-llvm::Value *Dumper::visit(EnumDecl &Enum) {
+Value *Dumper::visit(EnumDecl &Enum) {
   NodePrinter Node("EnumDecl", Enum);
 
   Node.indent();
@@ -215,7 +242,7 @@ llvm::Value *Dumper::visit(EnumDecl &Enum) {
   return nullptr;
 }
 
-llvm::Value *Dumper::visit(UnionDecl &Union) {
+Value *Dumper::visit(UnionDecl &Union) {
   NodePrinter Node("UnionDecl", Union);
 
   for (auto Member : Union.getFieldList())
@@ -224,7 +251,7 @@ llvm::Value *Dumper::visit(UnionDecl &Union) {
   return nullptr;
 }
 
-llvm::Value *Dumper::visit(TupleDecl &Tuple) {
+Value *Dumper::visit(TupleDecl &Tuple) {
   NodePrinter Node("TupleDecl", Tuple);
 
   for (auto Member : Tuple.getMemberList())
@@ -233,7 +260,7 @@ llvm::Value *Dumper::visit(TupleDecl &Tuple) {
   return nullptr;
 }
 
-llvm::Value *Dumper::visit(RangeDecl &Ranges) {
+Value *Dumper::visit(RangeDecl &Ranges) {
   NodePrinter Node("RangeDecl", Ranges);
 
   for (auto Range : Ranges.getRangeList())
@@ -242,7 +269,7 @@ llvm::Value *Dumper::visit(RangeDecl &Ranges) {
   return nullptr;
 }
 
-llvm::Value *Dumper::visit(TypeDef &Def) {
+Value *Dumper::visit(TypeDef &Def) {
   NodePrinter Node("TypeDef", Def);
   Node.printField("Identifier");
 
@@ -255,7 +282,7 @@ llvm::Value *Dumper::visit(TypeDef &Def) {
   return nullptr;
 }
 
-llvm::Value *Dumper::visit(UnaryExpr &Unary) {
+Value *Dumper::visit(UnaryExpr &Unary) {
   NodePrinter Node("UnaryExpr", Unary);
 
   Node.indent();
@@ -265,7 +292,7 @@ llvm::Value *Dumper::visit(UnaryExpr &Unary) {
   return nullptr;
 }
 
-llvm::Value *Dumper::visit(BinaryExpr &Binary) {
+Value *Dumper::visit(BinaryExpr &Binary) {
   NodePrinter Node("BinaryExpr", Binary);
 
   Node.indent();
@@ -277,14 +304,14 @@ llvm::Value *Dumper::visit(BinaryExpr &Binary) {
   return nullptr;
 }
 
-llvm::Value *Dumper::visit(LiteralExpr &Literal) {
+Value *Dumper::visit(LiteralExpr &Literal) {
   NodePrinter Node("LiteralExpr", Literal, false);
   Node.printIdentifier(Literal.getTokenInfo().toString());
 
   return nullptr;
 }
 
-llvm::Value *Dumper::visit(RangeExpr &Range) {
+Value *Dumper::visit(RangeExpr &Range) {
   NodePrinter Node("RangeExpr", Range, false);
 
   Node.printField("From") << Range.getBeginValue()->getTokenInfo().toString()
@@ -294,27 +321,38 @@ llvm::Value *Dumper::visit(RangeExpr &Range) {
   return nullptr;
 }
 
-llvm::Value *Dumper::visit(CallExpr &Callee) {
+Value *Dumper::visit(CallExpr &Callee) {
   NodePrinter Node("CallExpr", Callee);
 
   Node.printField("Name") << Callee.getIdentifier() << "\n";
 
-  if (Callee.hasArgs()) {
-    Node.printField("Arguments");
-
-    for (const auto &Arg : Callee.getArgumentList()) {
-      Node.offOutIndent();
-      Arg->accept(*this);
-    }
-    outs() << "\n";
-  }
+  if (Callee.hasArgs())
+    Node.printArgumentList(Callee);
 
   return nullptr;
 }
 
-llvm::Value *Dumper::visit(ArrayIndexExpr &Callee) { return nullptr; }
+Value *Dumper::visit(ArrayIndexExpr &Index) {
+  NodePrinter Node("ArrayIndexExpr", Index);
+  Node.printField("Identifier");
+  Node.printOnlyData();
+  Index.getIdentifier()->accept(*this);
+  llvm::outs() << "\n";
+  Node.printField("Index");
+  Node.offOutIndent();
+  Index.getIdxExpr()->accept(*this);
+  return nullptr;
+}
 
-llvm::Value *Dumper::visit(IfExpr &If) {
+Value *Dumper::visit(QualifiedIdentifierExpr &Ident) {
+  NodePrinter Node("QualifiedIdentifierExpr", Ident);
+  for (auto PartOfIdent : Ident.getIdentifier()) {
+    outs() << PartOfIdent.toString() << '.';
+  }
+  return nullptr;
+}
+
+Value *Dumper::visit(IfExpr &If) {
   NodePrinter Node("IfExpr", If);
   Node.offOutIndent();
 
@@ -339,7 +377,7 @@ llvm::Value *Dumper::visit(IfExpr &If) {
   return nullptr;
 }
 
-llvm::Value *Dumper::visit(ForExpr &For) {
+Value *Dumper::visit(ForExpr &For) {
   NodePrinter Node("ForExpr", For);
 
   Node.printField("Iter");
@@ -354,7 +392,7 @@ llvm::Value *Dumper::visit(ForExpr &For) {
   return nullptr;
 }
 
-llvm::Value *Dumper::visit(WhileExpr &While) {
+Value *Dumper::visit(WhileExpr &While) {
   NodePrinter Node("WhileExpr", While);
 
   Node.printField("Expr");
@@ -365,7 +403,7 @@ llvm::Value *Dumper::visit(WhileExpr &While) {
   return nullptr;
 }
 
-llvm::Value *Dumper::visit(AssignExpr &Assign) {
+Value *Dumper::visit(AssignExpr &Assign) {
   NodePrinter Node("AssignExpr", Assign);
 
   Node.indent();
@@ -378,7 +416,7 @@ llvm::Value *Dumper::visit(AssignExpr &Assign) {
   return nullptr;
 }
 
-llvm::Value *Dumper::visit(ast::StructInitExpr &Struct) {
+Value *Dumper::visit(ast::StructInitExpr &Struct) {
   NodePrinter Node("StructInitExpr", Struct);
 
   for (auto FieldVal : Struct.getValues())
@@ -387,8 +425,9 @@ llvm::Value *Dumper::visit(ast::StructInitExpr &Struct) {
   return nullptr;
 }
 
-llvm::Value *Dumper::visit(ast::ArrayExpr &Array) {
+Value *Dumper::visit(ast::ArrayExpr &Array) {
   NodePrinter Node("ArrayExpr", Array);
+  Node.indent();
 
   for (auto Val : Array.getValues())
     Val->accept(*this);
@@ -396,7 +435,7 @@ llvm::Value *Dumper::visit(ast::ArrayExpr &Array) {
   return nullptr;
 }
 
-llvm::Value *Dumper::visit(OpenStmt &Stmt) {
+Value *Dumper::visit(OpenStmt &Stmt) {
   NodePrinter Node("OpenStmt", Stmt);
 
   Node.printField("Module");
@@ -406,7 +445,7 @@ llvm::Value *Dumper::visit(OpenStmt &Stmt) {
   return nullptr;
 }
 
-llvm::Value *Dumper::visit(BlockStmt &Block) {
+Value *Dumper::visit(BlockStmt &Block) {
   NodePrinter Node("BlockStmt", Block);
 
   if (auto Body = Block.getBody()) {
@@ -419,7 +458,7 @@ llvm::Value *Dumper::visit(BlockStmt &Block) {
   return nullptr;
 }
 
-llvm::Value *Dumper::visit(ReturnStmt &Stmt) {
+Value *Dumper::visit(ReturnStmt &Stmt) {
   NodePrinter Node("ReturnStmt", Stmt);
 
   if (auto Expr = Stmt.getReturnExpr())

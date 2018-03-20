@@ -11,7 +11,6 @@
 #include "Diagnostic.h"
 #include "Type/Type.h"
 #include "Type/TypeInference.h"
-
 #include <llvm/ADT/APFloat.h>
 #include <llvm/ADT/APInt.h>
 #include <llvm/IR/BasicBlock.h>
@@ -155,14 +154,15 @@ Value *IRBuilder::visit(ast::LiteralExpr &Literal) {
     return Builder.CreateGlobalStringPtr(Token.toString());
   case Token::Int:
     return ConstantInt::get(Context, APInt(32, Token.toString(), 10));
-  case Token::Identifier:
-    V = CurrentScope->lookup(Token.toString());
-    if (V->getIRType()->isPointerTy())
-      return Builder.CreateLoad(V->getIRType(), V->getIRValue());
-    return V->getIRValue();
   }
 
-  return nullptr;
+  if (auto Var = CurrentScope->lookup(Token.toString())) {
+    if (Var->getIRType()->isPointerTy())
+      return Builder.CreateLoad(Var->getIRType(), Var->getIRValue());
+    return Var->getIRValue();
+  }
+
+  Diagnostic(Module->getModuleIdentifier()).semanticError("unknown symbol");
 }
 
 Value *IRBuilder::visit(ast::RangeExpr &) { return nullptr; }
@@ -189,16 +189,34 @@ Value *IRBuilder::visit(ast::CallExpr &Callee) {
 }
 
 llvm::Value *IRBuilder::visit(ast::ArrayIndexExpr &Idx) {
-  auto Ty = CurrentScope->lookup(Idx.getIdentifier());
+  auto Ty = Idx.getIdentifier()->accept(*this);
   auto Index = Idx.getIdxExpr()->accept(*this);
 
   auto Z = llvm::ConstantInt::get(Context, llvm::APInt(64, 0, true));
   auto I = Builder.CreateBitCast(Index, IntegerType::getInt64Ty(Context));
 
   auto Ptr = llvm::GetElementPtrInst::Create(
-     Ty->getIRType(), Ty->getIRValue(), {Z, I}, "",
-     &CurrentFn->getIRValue()->getBasicBlockList().back());
+      Ty->getType(), Ty, {Z, I}, "",
+      &CurrentFn->getIRValue()->getBasicBlockList().back());
   return Builder.CreateLoad(Ptr);
+}
+
+llvm::Value *IRBuilder::visit(ast::QualifiedIdentifierExpr &Ident) {
+  auto Var = CurrentScope->lookup(Ident.getPart(0).toString());
+  auto Struct = static_cast<ast::StructInitExpr *>(Var->getValue())->getType();
+
+  unsigned I = 0;
+  for (auto F : Struct->getFieldList()) {
+    if (F->getIdentifier() == Ident.getPart(1).toString()) {
+      return Builder.CreateExtractValue(Builder.CreateLoad(Var->getIRValue()),
+                                        {I});
+    }
+    ++I;
+  }
+
+  Diagnostic(Module->getModuleIdentifier())
+      .semanticError("structure " + Struct->getIdentifier() +
+                     "doesn't has field `" + Ident.getPart(1).toString() + "`");
 }
 
 Value *IRBuilder::visit(ast::IfExpr &If) {
@@ -295,13 +313,18 @@ Value *IRBuilder::visit(ast::WhileExpr &) { return nullptr; }
 Value *IRBuilder::visit(ast::AssignExpr &) { return nullptr; }
 
 Value *IRBuilder::visit(ast::StructInitExpr &Struct) {
-  auto Ty = Module->getType(Struct.getTypeName());
+  auto Ty = getTypeFromIdent(Struct.getIdentifier());
+  auto TypeDef = static_cast<ast::TypeDef *>(Ty->getDecl());
+  auto StructDecl = static_cast<ast::StructDecl *>(TypeDef->getTypeDecl());
+  Struct.setType(StructDecl);
 
   std::vector<Constant *> Fields;
   for (auto Field : Struct.getValues())
     Fields.push_back(static_cast<Constant *>(Field->accept(*this)));
 
-  return ConstantStruct::get(static_cast<StructType *>(Ty->toIR(M)), Fields);
+  auto IR = ConstantStruct::get(static_cast<StructType *>(Ty->toIR(M)), Fields);
+  Struct.setIRValue(IR);
+  return IR;
 }
 
 Value *IRBuilder::visit(ast::ArrayExpr &Array) {
@@ -352,6 +375,15 @@ Value *IRBuilder::visit(ast::ReturnStmt &Return) {
   if (auto Expr = Return.getReturnExpr())
     return Builder.CreateRet(Expr->accept(*this));
   return Builder.CreateRetVoid();
+}
+
+type::Type *IRBuilder::getTypeFromIdent(ast::Node *Ident) {
+  if (auto Literal = dyn_cast<ast::LiteralExpr>(Ident)) {
+    if (auto Type = Module->getTypeOrNull(Literal->getTokenInfo().toString()))
+      return Type;
+  }
+
+  Diagnostic(Module->getModuleIdentifier()).semanticError("unknown symbol");
 }
 
 } // namespace north::ir

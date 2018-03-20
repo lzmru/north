@@ -30,6 +30,8 @@ public:
 class TypedValue : public llvm::Value {
 public:
   explicit TypedValue(llvm::Type *Type) : Type(Type), Value(nullptr, 1) {}
+  explicit TypedValue(llvm::Value *Val)
+      : Type(Val->getType()), Value(nullptr, 1) {}
 
   llvm::Type *Type;
 };
@@ -69,9 +71,14 @@ llvm::Value *InferenceVisitor::visit(ast::LiteralExpr &Literal) {
     return new NamedValue("int");
   case Token::String:
     return new NamedValue("string");
-  case Token::Identifier:
-    return new TypedValue(CurrentScope->lookup(L.toString())->getIRType());
   }
+
+  if (auto Var = CurrentScope->lookup(L.toString()))
+    return new TypedValue(Var->getIRType());
+  if (auto Type = Mod->getTypeOrNull(L.toString()))
+    return new TypedValue(Type->toIR(Mod));
+
+  Diagnostic(Mod->getModuleIdentifier()).semanticError("unknown symbol");
 }
 
 llvm::Value *InferenceVisitor::visit(ast::RangeExpr &) { return nullptr; }
@@ -83,7 +90,19 @@ llvm::Value *InferenceVisitor::visit(ast::CallExpr &Callee) {
 }
 
 llvm::Value *InferenceVisitor::visit(ast::ArrayIndexExpr &Idx) {
-  return new TypedValue(CurrentScope->lookup(Idx.getIdentifier())->getIRType());
+  return new TypedValue(Idx.getIdentifier()->accept(*this));
+}
+
+llvm::Value *InferenceVisitor::visit(ast::QualifiedIdentifierExpr &Ident) {
+
+  auto getStructElementNum = []() {};
+
+  if (auto Struct = CurrentScope->lookup(Ident.getPart(0).toString())) {
+    // static_cast<llvm::StructType
+    // *>(Struct->getIRValue())->getStructElementType();
+    llvm::outs() << *Struct->getIRValue();
+  }
+  return nullptr;
 }
 
 llvm::Value *InferenceVisitor::visit(ast::IfExpr &) { return nullptr; }
@@ -95,7 +114,7 @@ llvm::Value *InferenceVisitor::visit(ast::WhileExpr &) { return nullptr; }
 llvm::Value *InferenceVisitor::visit(ast::AssignExpr &) { return nullptr; }
 
 llvm::Value *InferenceVisitor::visit(ast::StructInitExpr &SI) {
-  return new TypedValue(Mod->getType(SI.getTypeName())->toIR(Mod));
+  return SI.getIdentifier()->accept(*this);
 }
 
 llvm::Value *InferenceVisitor::visit(ast::ArrayExpr &Array) {
