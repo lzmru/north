@@ -208,8 +208,8 @@ llvm::Value *IRBuilder::visit(ast::QualifiedIdentifierExpr &Ident) {
   unsigned I = 0;
   for (auto F : Struct->getFieldList()) {
     if (F->getIdentifier() == Ident.getPart(1).toString()) {
-      return Builder.CreateExtractValue(Builder.CreateLoad(Var->getIRValue()),
-                                        {I});
+      auto Load = Builder.CreateLoad(Var->getIRValue());
+      return Builder.CreateExtractValue(Load, {I});
     }
     ++I;
   }

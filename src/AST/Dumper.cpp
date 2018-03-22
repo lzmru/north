@@ -27,39 +27,37 @@ class NodePrinter {
   static bool OnlyData;
 
 public:
-  explicit NodePrinter(const char *NodeName, const north::ast::Node &Node,
+  explicit NodePrinter(StringRef NodeName, const north::ast::Node &Node,
                        bool InIndent = true) {
     In = InIndent;
 
-    Tab++;
-    if (OnlyData)
-      return;
-
     if (Out)
       indent();
+    ++Tab;
 
     if (OnlyData)
       return;
 
     outs().changeColor(raw_ostream::MAGENTA, true);
-    outs() << NodeName << ' ';
+    outs() << NodeName;
+    outs().resetColor() << ": ";
     printPos(Node.getPosition());
-    outs().resetColor() << " [" << (In ? "\n" : " ");
+    outs().resetColor() << " {" << (In ? "\n" : " ");
   }
 
-  explicit NodePrinter(const char *NodeName, bool InIndent = true) {
+  explicit NodePrinter(StringRef NodeName, bool InIndent = true) {
     In = InIndent;
-
-    Tab++;
-    if (OnlyData)
-      return;
 
     if (Out)
       indent();
+    ++Tab;
+
+    if (OnlyData)
+      return;
 
     outs().changeColor(raw_ostream::YELLOW, true);
     outs() << NodeName;
-    outs().resetColor() << ": [" << (In ? "\n" : " ");
+    outs().resetColor() << ": {" << (In ? "\n" : " ");
   }
 
   ~NodePrinter() {
@@ -71,7 +69,7 @@ public:
     }
     if (In)
       indent();
-    outs() << (!In ? " ]\n" : "]\n");
+    outs() << (!In ? " }\n" : "}\n");
   }
 
   void offOutIndent() { Out = false; }
@@ -100,13 +98,13 @@ public:
 
   void printArgumentList(FunctionDecl &Func) {
     NodePrinter Node("Arguments");
+    Dumper Dump;
 
     for (auto Arg : Func.getArgumentList()) {
-      indent();
+      Node.indent();
       printIdentifier(Arg->getIdentifier()) << ' ';
       printPos(Arg->getPosition()) << " -> ";
 
-      Dumper Dump;
       Node.offOutIndent();
       Arg->getType()->accept(Dump);
     }
@@ -151,12 +149,11 @@ Value *Dumper::visit(FunctionDecl &Func) {
   NodePrinter Node("FunctionDecl", Func);
 
   Node.printField("Name");
-  Node.printIdentifier(Func.getIdentifier()) << '\n';
+  Node.printIdentifier(Func.getIdentifier()) << ",\n";
 
   if (auto Type = Func.getTypeDecl()) {
     Node.printField("Type");
-    Node.printIdentifier(Type->getIdentifier());
-    outs() << '\n';
+    Node.printIdentifier(Type->getIdentifier()) << ",\n";
   }
 
   if (Func.hasGenerics())
@@ -273,7 +270,7 @@ Value *Dumper::visit(TypeDef &Def) {
   NodePrinter Node("TypeDef", Def);
   Node.printField("Identifier");
 
-  Node.printIdentifier(Def.getIdentifier()) << '\n';
+  Node.printIdentifier(Def.getIdentifier()) << ",\n";
   if (Def.hasGenerics())
     Node.printGenericList(Def);
 
@@ -324,7 +321,7 @@ Value *Dumper::visit(RangeExpr &Range) {
 Value *Dumper::visit(CallExpr &Callee) {
   NodePrinter Node("CallExpr", Callee);
 
-  Node.printField("Name") << Callee.getIdentifier() << "\n";
+  Node.printField("Name") << Callee.getIdentifier() << ",\n";
 
   if (Callee.hasArgs())
     Node.printArgumentList(Callee);
@@ -345,10 +342,17 @@ Value *Dumper::visit(ArrayIndexExpr &Index) {
 }
 
 Value *Dumper::visit(QualifiedIdentifierExpr &Ident) {
-  NodePrinter Node("QualifiedIdentifierExpr", Ident);
-  for (auto PartOfIdent : Ident.getIdentifier()) {
-    outs() << PartOfIdent.toString() << '.';
+  NodePrinter Node("QualifiedIdentifierExpr", Ident, false);
+
+  auto Identifier = Ident.getIdentifier();
+  int I = 0, E = Identifier.size();
+  for (auto PartOfIdent : Identifier) {
+    outs().changeColor(raw_ostream::CYAN) << PartOfIdent.toString();
+    if (++I != E)
+      outs().resetColor() << '.';
   }
+
+  outs().resetColor();
   return nullptr;
 }
 
@@ -418,6 +422,7 @@ Value *Dumper::visit(AssignExpr &Assign) {
 
 Value *Dumper::visit(ast::StructInitExpr &Struct) {
   NodePrinter Node("StructInitExpr", Struct);
+  Node.onOutIndent();
 
   for (auto FieldVal : Struct.getValues())
     FieldVal->accept(*this);
