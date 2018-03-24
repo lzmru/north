@@ -51,7 +51,7 @@ class LiteralExpr : public Node {
   TokenInfo TkInfo;
 
 public:
-  explicit LiteralExpr(TokenInfo Info)
+  explicit LiteralExpr(const TokenInfo &Info)
       : Node(Info.Pos, AST_LiteralExpr), TkInfo(Info) {}
 
   TokenInfo getTokenInfo() const { return TkInfo; }

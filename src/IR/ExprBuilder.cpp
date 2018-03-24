@@ -1,4 +1,4 @@
-//===--- IR/IRBuilder.cpp - Transformation AST to LLVM IR -------*- C++ -*-===//
+//===--- IR/ExprBuilder.cpp - Transformation AST to LLVM IR -----*- C++ -*-===//
 //
 //                       The North Compiler Infrastructure
 //
@@ -11,6 +11,7 @@
 #include "Diagnostic.h"
 #include "Type/Type.h"
 #include "Type/TypeInference.h"
+
 #include <llvm/ADT/APFloat.h>
 #include <llvm/ADT/APInt.h>
 #include <llvm/IR/BasicBlock.h>
@@ -26,76 +27,11 @@
 #include <llvm/Support/FormatVariadic.h>
 #include <llvm/Support/raw_ostream.h>
 
-namespace north::ir {
-
 #define M Module.get()
 
+namespace north::ir {
+
 using namespace llvm;
-
-llvm::LLVMContext IRBuilder::Context;
-
-Value *IRBuilder::visit(ast::FunctionDecl &Fn) {
-  if (!Fn.getBlockStmt())
-    return nullptr;
-  auto BB = BasicBlock::Create(Context, "entry", Fn.getIRValue());
-  Builder.SetInsertPoint(BB);
-  // inferFunctionType(Fn, M);
-  CurrentFn = &Fn;
-  return Fn.getBlockStmt()->accept(*this);
-}
-
-Value *IRBuilder::visit(ast::InterfaceDecl &) { return nullptr; }
-
-Value *IRBuilder::visit(ast::VarDecl &Var) {
-  llvm::Type *Type = nullptr;
-
-  if (auto TypeDecl = Var.getType()) {
-    Type = Module->getType(Var.getType()->getIdentifier())->toIR(M);
-    if (TypeDecl->isPtr())
-      Type = Type->getPointerTo(0);
-  } else {
-    Type = inferVarType(Var, M, CurrentScope)->toIR(M);
-    Var.setIRType(Type);
-  }
-
-  auto IR = Builder.CreateAlloca(Type, nullptr, Var.getIdentifier());
-  Var.setIRValue(IR);
-  CurrentScope->addElement(&Var);
-
-  if (auto Val = Var.getValue()) {
-    Builder.CreateStore(Val->accept(*this), IR);
-  }
-
-  return nullptr;
-}
-
-Value *IRBuilder::visit(ast::AliasDecl &Alias) {
-  return nullptr;
-  // return llvm::GlobalAlias::create(Builder.getVoidTy(), 0,
-  //                                 GlobalValue::LinkageTypes::ExternalLinkage,
-  //                                 Alias.getIdentifier(), M);
-}
-
-Value *IRBuilder::visit(ast::StructDecl &Struct) {
-  std::vector<llvm::Type *> Args;
-
-  for (auto Field : Struct.getFieldList()) {
-    auto Ident = Field->getType()->getIdentifier();
-    Args.push_back(Module->getType(Ident)->toIR(M));
-  }
-
-  Struct.getIR()->setBody(Args);
-  return nullptr;
-}
-
-Value *IRBuilder::visit(ast::EnumDecl &Enum) { return nullptr; }
-Value *IRBuilder::visit(ast::UnionDecl &) { return nullptr; }
-Value *IRBuilder::visit(ast::TupleDecl &) { return nullptr; }
-Value *IRBuilder::visit(ast::RangeDecl &) { return nullptr; }
-
-Value *IRBuilder::visit(ast::TypeDef &Type) {
-  return Type.getTypeDecl()->accept(*this);
-}
 
 Value *IRBuilder::visit(ast::UnaryExpr &Unary) {
   auto Expr = Unary.getOperand()->accept(*this);
@@ -216,7 +152,7 @@ llvm::Value *IRBuilder::visit(ast::QualifiedIdentifierExpr &Ident) {
 
   Diagnostic(Module->getModuleIdentifier())
       .semanticError("structure " + Struct->getIdentifier() +
-                     "doesn't has field `" + Ident.getPart(1).toString() + "`");
+          "doesn't has field `" + Ident.getPart(1).toString() + "`");
 }
 
 Value *IRBuilder::visit(ast::IfExpr &If) {
@@ -348,42 +284,5 @@ Value *IRBuilder::visit(ast::ArrayExpr &Array) {
   return ConstantArray::get(Ty, Values);
 }
 
-Value *IRBuilder::visit(ast::OpenStmt &O) {
-  // FunctionImporter FI(M->getProfileSummary(), );
-  return nullptr;
-}
-
-Value *IRBuilder::visit(ast::BlockStmt &Block) {
-  type::Scope Scope(CurrentScope, M);
-  CurrentScope = &Scope;
-
-  for (auto Arg : CurrentFn->getArgumentList())
-    CurrentScope->addElement(Arg);
-
-  Value *Result = nullptr;
-
-  if (auto Body = Block.getBody()) {
-    for (auto I = Body->begin(), E = Body->end(); I != E; ++I)
-      Result = I->accept(*this);
-  }
-
-  CurrentScope = Scope.getParent();
-  return Result;
-}
-
-Value *IRBuilder::visit(ast::ReturnStmt &Return) {
-  if (auto Expr = Return.getReturnExpr())
-    return Builder.CreateRet(Expr->accept(*this));
-  return Builder.CreateRetVoid();
-}
-
-type::Type *IRBuilder::getTypeFromIdent(ast::Node *Ident) {
-  if (auto Literal = dyn_cast<ast::LiteralExpr>(Ident)) {
-    if (auto Type = Module->getTypeOrNull(Literal->getTokenInfo().toString()))
-      return Type;
-  }
-
-  Diagnostic(Module->getModuleIdentifier()).semanticError("unknown symbol");
-}
 
 } // namespace north::ir

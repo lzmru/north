@@ -18,11 +18,15 @@ set(SOURCE_FILES
         src/Diagnostic.cpp
         src/Trace.cpp
         src/AST/Dumper.cpp
-        src/IR/IRBuilder.cpp
+        src/IR/StmtBuilder.cpp
         src/Type/Module.cpp
         src/Type/Scope.cpp
         src/Type/TypeInference.cpp
-        src/Type/Type.cpp)
+        src/Type/Type.cpp
+        src/IR/ExprBuilder.cpp
+        src/IR/StmtBuilder.cpp
+        src/IR/DeclBuilder.cpp
+        src/IR/Utils.cpp)
 
 add_executable(north ${SOURCE_FILES})
 
