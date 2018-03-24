@@ -27,6 +27,8 @@ class IRBuilder : public ast::Visitor {
   type::Scope *CurrentScope;
   ast::FunctionDecl *CurrentFn;
 
+  bool GetVal = false;
+
   static llvm::LLVMContext Context;
 
 public:

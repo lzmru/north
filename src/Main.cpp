@@ -98,15 +98,15 @@ int main(int argc, const char *argv[]) {
       return 1;
     }
 
-    legacy::PassManager pass;
+    legacy::PassManager Pass;
     auto FileType = TargetMachine::CGFT_ObjectFile;
 
-    if (TheTargetMachine->addPassesToEmitFile(pass, dest, FileType)) {
+    if (TheTargetMachine->addPassesToEmitFile(Pass, dest, FileType)) {
       errs() << "TheTargetMachine can't emit a file of this type";
       return 1;
     }
 
-    pass.run(*Module);
+    Pass.run(*Module);
     dest.flush();
 
     system(("gcc " + Filename + " -o " +

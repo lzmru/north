@@ -64,7 +64,7 @@ Value *IRBuilder::visit(ast::VarDecl &Var) {
     Builder.CreateStore(Val->accept(*this), IR);
   }
 
-  return nullptr;
+  return IR;
 }
 
 Value *IRBuilder::visit(ast::AliasDecl &Alias) {

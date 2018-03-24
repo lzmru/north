@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "IR/IRBuilder.h"
 #include "Diagnostic.h"
+#include "IR/IRBuilder.h"
 #include "Type/Type.h"
 #include "Type/TypeInference.h"
 
@@ -80,7 +80,6 @@ Value *IRBuilder::visit(ast::BinaryExpr &Expr) {
 
 Value *IRBuilder::visit(ast::LiteralExpr &Literal) {
   auto Token = Literal.getTokenInfo();
-  ast::VarDecl *V;
 
   switch (Token.Type) {
   case Token::Char:
@@ -93,8 +92,8 @@ Value *IRBuilder::visit(ast::LiteralExpr &Literal) {
   }
 
   if (auto Var = CurrentScope->lookup(Token.toString())) {
-    if (Var->getIRType()->isPointerTy())
-      return Builder.CreateLoad(Var->getIRType(), Var->getIRValue());
+    if (GetVal)
+      return Builder.CreateLoad(Var->getIRValue());
     return Var->getIRValue();
   }
 
@@ -117,8 +116,10 @@ Value *IRBuilder::visit(ast::CallExpr &Callee) {
   std::vector<Value *> Args;
   if (Callee.hasArgs()) {
     Args.reserve(Callee.numberOfArgs() - 1);
+    GetVal = true;
     for (auto &Arg : Callee.getArgumentList())
       Args.push_back(Arg->accept(*this));
+    GetVal = false;
   }
 
   return Builder.CreateCall(Fn->getFunctionType(), Fn, Args, "calltmp");
@@ -152,7 +153,7 @@ llvm::Value *IRBuilder::visit(ast::QualifiedIdentifierExpr &Ident) {
 
   Diagnostic(Module->getModuleIdentifier())
       .semanticError("structure " + Struct->getIdentifier() +
-          "doesn't has field `" + Ident.getPart(1).toString() + "`");
+                     "doesn't has field `" + Ident.getPart(1).toString() + "`");
 }
 
 Value *IRBuilder::visit(ast::IfExpr &If) {
@@ -245,8 +246,23 @@ Value *IRBuilder::visit(ast::ForExpr &For) {
   return Constant::getNullValue(Type::getInt32Ty(Context));
 }
 
-Value *IRBuilder::visit(ast::WhileExpr &) { return nullptr; }
-Value *IRBuilder::visit(ast::AssignExpr &) { return nullptr; }
+Value *IRBuilder::visit(ast::WhileExpr &While) { return nullptr; }
+
+Value *IRBuilder::visit(ast::AssignExpr &Assign) {
+  auto LHS = Assign.getLHS()->accept(*this),
+       RHS = Assign.getRHS()->accept(*this);
+
+  if (!LHS || !RHS)
+    Diagnostic(Module->getModuleIdentifier())
+        .semanticError("invalid assign expression");
+
+  switch (Assign.getOperator()) {
+  case Token::Assign:
+    return Builder.CreateStore(RHS, LHS);
+  }
+
+  llvm_unreachable("unsupported assign expression operator");
+}
 
 Value *IRBuilder::visit(ast::StructInitExpr &Struct) {
   auto Ty = getTypeFromIdent(Struct.getIdentifier());
@@ -283,6 +299,5 @@ Value *IRBuilder::visit(ast::ArrayExpr &Array) {
 
   return ConstantArray::get(Ty, Values);
 }
-
 
 } // namespace north::ir
