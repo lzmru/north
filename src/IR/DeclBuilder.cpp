@@ -60,19 +60,13 @@ Value *IRBuilder::visit(ast::VarDecl &Var) {
   Var.setIRValue(IR);
   CurrentScope->addElement(&Var);
 
-  if (auto Val = Var.getValue()) {
+  if (auto Val = Var.getValue())
     Builder.CreateStore(Val->accept(*this), IR);
-  }
 
   return IR;
 }
 
-Value *IRBuilder::visit(ast::AliasDecl &Alias) {
-  return nullptr;
-  // return llvm::GlobalAlias::create(Builder.getVoidTy(), 0,
-  //                                 GlobalValue::LinkageTypes::ExternalLinkage,
-  //                                 Alias.getIdentifier(), M);
-}
+Value *IRBuilder::visit(ast::AliasDecl &Alias) { return nullptr; }
 
 Value *IRBuilder::visit(ast::StructDecl &Struct) {
   std::vector<llvm::Type *> Args;
