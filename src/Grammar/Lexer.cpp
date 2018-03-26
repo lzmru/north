@@ -313,7 +313,7 @@ __start:
 
   case '>': {
     if (Pos.Offset[1] == '>') {
-      if (Pos.Offset[1] == '=')
+      if (Pos.Offset[2] == '=')
         return makeToken(Token::RShiftAssign, 3);
       return makeToken(Token::RShift, 2);
     }
@@ -324,7 +324,7 @@ __start:
 
   case '<': {
     if (Pos.Offset[1] == '<') {
-      if (Pos.Offset[1] == '=')
+      if (Pos.Offset[2] == '=')
         return makeToken(Token::LShiftAssign, 3);
       return makeToken(Token::LShift, 2);
     }

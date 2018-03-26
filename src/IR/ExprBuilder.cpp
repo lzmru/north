@@ -54,8 +54,10 @@ Value *IRBuilder::visit(ast::UnaryExpr &Unary) {
 }
 
 Value *IRBuilder::visit(ast::BinaryExpr &Expr) {
+  GetVal = true;
   auto LHS = Expr.getLHS()->accept(*this);
   auto RHS = Expr.getRHS()->accept(*this);
+  GetVal = false;
 
   if (!LHS || !RHS)
     Diagnostic(Module->getModuleIdentifier())
@@ -248,6 +250,9 @@ Value *IRBuilder::visit(ast::ForExpr &For) {
 
 Value *IRBuilder::visit(ast::WhileExpr &While) { return nullptr; }
 
+#define CREATE_ASSIGN(FN)                                                      \
+  Builder.CreateStore(Builder.Create##FN(Builder.CreateLoad(LHS), RHS), LHS);
+
 Value *IRBuilder::visit(ast::AssignExpr &Assign) {
   auto LHS = Assign.getLHS()->accept(*this),
        RHS = Assign.getRHS()->accept(*this);
@@ -259,6 +264,30 @@ Value *IRBuilder::visit(ast::AssignExpr &Assign) {
   switch (Assign.getOperator()) {
   case Token::Assign:
     return Builder.CreateStore(RHS, LHS);
+
+  case Token::DivAssign:
+    return CREATE_ASSIGN(SDiv);
+
+  case Token::MultAssign:
+    return CREATE_ASSIGN(Mul);
+
+  case Token::PlusAssign:
+    return CREATE_ASSIGN(Add);
+
+  case Token::MinusAssign:
+    return CREATE_ASSIGN(Sub);
+
+  case Token::RShiftAssign:
+    return CREATE_ASSIGN(LShr);
+
+  case Token::LShiftAssign:
+    return CREATE_ASSIGN(Shl);
+
+  case Token::AndAssign:
+    return CREATE_ASSIGN(And);
+
+  case Token::OrAssign:
+    return CREATE_ASSIGN(Or);
   }
 
   llvm_unreachable("unsupported assign expression operator");
@@ -271,8 +300,10 @@ Value *IRBuilder::visit(ast::StructInitExpr &Struct) {
   Struct.setType(StructDecl);
 
   std::vector<Constant *> Fields;
+  GetVal = true;
   for (auto Field : Struct.getValues())
     Fields.push_back(static_cast<Constant *>(Field->accept(*this)));
+  GetVal = false;
 
   auto IR = ConstantStruct::get(static_cast<StructType *>(Ty->toIR(M)), Fields);
   Struct.setIRValue(IR);
