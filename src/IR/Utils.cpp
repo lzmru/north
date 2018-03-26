@@ -24,4 +24,10 @@ type::Type *IRBuilder::getTypeFromIdent(ast::Node *Ident) {
   Diagnostic(Module->getModuleIdentifier()).semanticError("unknown symbol");
 }
 
+llvm::Value *IRBuilder::compareWithTrue(llvm::Value *Val) {
+  return Builder.CreateICmp(
+      llvm::CmpInst::ICMP_EQ, Val,
+      ConstantInt::get(Type::getInt1Ty(Context), 1, false));
+}
+
 } // namespace north::ir

@@ -43,6 +43,7 @@ public:
 
 private:
   type::Type *getTypeFromIdent(ast::Node *);
+  llvm::Value *compareWithTrue(llvm::Value *);
 };
 
 } // namespace north::ir

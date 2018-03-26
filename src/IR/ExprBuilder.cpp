@@ -64,20 +64,56 @@ Value *IRBuilder::visit(ast::BinaryExpr &Expr) {
         .semanticError("invalid expression");
 
   switch (Expr.getOperator()) {
+  case Token::Mult:
+    return Builder.CreateMul(LHS, RHS);
+
+  case Token::Div:
+    return Builder.CreateSDiv(LHS, RHS);
+
   case Token::Plus:
-    return Builder.CreateAdd(LHS, RHS, "addtmp");
+    return Builder.CreateAdd(LHS, RHS);
 
   case Token::Minus:
-    return Builder.CreateSub(LHS, RHS, "subtmp");
+    return Builder.CreateSub(LHS, RHS);
 
-  case Token::Mult:
-    return Builder.CreateMul(LHS, RHS, "multmp");
+  case Token::LShift:
+    return Builder.CreateShl(LHS, RHS);
+
+  case Token::RShift:
+    return Builder.CreateLShr(LHS, RHS);
+
+  case Token::And:
+    return Builder.CreateAnd(LHS, RHS);
+
+  case Token::Or:
+    return Builder.CreateOr(LHS, RHS);
+
+  case Token::Eq:
+    return Builder.CreateICmpEQ(LHS, RHS);
+
+  case Token::NotEq:
+    return Builder.CreateICmpNE(LHS, RHS);
 
   case Token::LessThan:
-    return Builder.CreateICmpULT(LHS, RHS, "cmptmp");
+    return Builder.CreateICmpSLT(LHS, RHS);
+
+  case Token::LessEq:
+    return Builder.CreateICmpSLE(LHS, RHS);
+
+  case Token::GreaterThan:
+    return Builder.CreateICmpSGT(LHS, RHS);
+
+  case Token::GreaterEq:
+    return Builder.CreateICmpSGE(LHS, RHS);
+
+  case Token::OrOr:
+    return Builder.CreateOr(compareWithTrue(LHS), compareWithTrue(RHS));
+
+  case Token::AndAnd:
+    return Builder.CreateAnd(compareWithTrue(LHS), compareWithTrue(RHS));
   }
 
-  return nullptr;
+  llvm_unreachable("unsupported binary expression operator");
 }
 
 Value *IRBuilder::visit(ast::LiteralExpr &Literal) {
@@ -124,7 +160,7 @@ Value *IRBuilder::visit(ast::CallExpr &Callee) {
     GetVal = false;
   }
 
-  return Builder.CreateCall(Fn->getFunctionType(), Fn, Args, "calltmp");
+  return Builder.CreateCall(Fn->getFunctionType(), Fn, Args);
 }
 
 llvm::Value *IRBuilder::visit(ast::ArrayIndexExpr &Idx) {
@@ -137,6 +173,7 @@ llvm::Value *IRBuilder::visit(ast::ArrayIndexExpr &Idx) {
   auto Ptr = llvm::GetElementPtrInst::Create(
       Ty->getType(), Ty, {Z, I}, "",
       &CurrentFn->getIRValue()->getBasicBlockList().back());
+
   return Builder.CreateLoad(Ptr);
 }
 
@@ -164,9 +201,7 @@ Value *IRBuilder::visit(ast::IfExpr &If) {
     Diagnostic(Module->getModuleIdentifier())
         .semanticError("empty if condition");
 
-  Cond = Builder.CreateICmp(
-      llvm::CmpInst::ICMP_NE, Cond,
-      ConstantInt::get(Type::getInt1Ty(Context), 0, false), "ifcond");
+  Cond = compareWithTrue(Cond);
 
   Function *Fn = Builder.GetInsertBlock()->getParent();
 
