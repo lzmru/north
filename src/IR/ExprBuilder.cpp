@@ -39,18 +39,32 @@ Value *IRBuilder::visit(ast::UnaryExpr &Unary) {
     Diagnostic(Module->getModuleIdentifier())
         .semanticError("invalid expression");
 
-  /*
-  if (Unary.getOperator() == Token::Minus) {
-    auto Int = static_cast<ConstantInt *>(Expr);
-    return ConstantInt::get(Int->getType(),
-                            *Int->getValue().getRawData(), true);
-  }
-*/
-  if (Unary.getOperator() == Token::Mult) {
+  switch (Unary.getOperator()) {
+  case Token::Mult:
     return Builder.CreateLoad(Expr);
+
+  case Token::Not:
+    return Builder.CreateNot(Expr);
+
+  case Token::Increment:
+    return Builder.CreateStore(
+        Builder.CreateAdd(
+            Builder.CreateLoad(Expr),
+            ConstantInt::get(Type::getInt32Ty(Context), 1, false)),
+        Expr);
+
+  case Token::Decrement:
+    return Builder.CreateStore(
+        Builder.CreateSub(
+            Builder.CreateLoad(Expr),
+            ConstantInt::get(Type::getInt32Ty(Context), 1, false)),
+        Expr);
+
+  case Token::Minus:
+    return Builder.CreateNeg(Expr);
   }
 
-  return nullptr;
+  llvm_unreachable("unsupported unary expression operator");
 }
 
 Value *IRBuilder::visit(ast::BinaryExpr &Expr) {
@@ -196,7 +210,10 @@ llvm::Value *IRBuilder::visit(ast::QualifiedIdentifierExpr &Ident) {
 }
 
 Value *IRBuilder::visit(ast::IfExpr &If) {
+  GetVal = true;
   auto Cond = If.getExpr()->accept(*this);
+  GetVal = false;
+
   if (!Cond)
     Diagnostic(Module->getModuleIdentifier())
         .semanticError("empty if condition");

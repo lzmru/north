@@ -25,9 +25,7 @@ type::Type *IRBuilder::getTypeFromIdent(ast::Node *Ident) {
 }
 
 llvm::Value *IRBuilder::compareWithTrue(llvm::Value *Val) {
-  return Builder.CreateICmp(
-      llvm::CmpInst::ICMP_EQ, Val,
-      ConstantInt::get(Type::getInt1Ty(Context), 1, false));
+  return Builder.CreateICmpSGE(Val, ConstantInt::get(Val->getType(), 1, false));
 }
 
 } // namespace north::ir
