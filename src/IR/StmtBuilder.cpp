@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "IR/IRBuilder.h"
 #include "Diagnostic.h"
+#include "IR/IRBuilder.h"
 #include "Type/Type.h"
 #include "Type/TypeInference.h"
 #include <llvm/ADT/APFloat.h>

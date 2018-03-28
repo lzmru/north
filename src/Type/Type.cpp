@@ -30,6 +30,18 @@ llvm::Type *createStructIR(ast::GenericDecl *Decl, Module *M) {
   return Struct;
 }
 
+llvm::Type *createEnumIR(ast::GenericDecl *Decl, Module *M) {
+  auto Enum = static_cast<ast::EnumDecl *>(Decl);
+
+  uint64_t I = 0;
+  for (auto Member : Enum->getMemberList()) {
+    Enum->addValue(Member.getTokenInfo().toString(),
+                   llvm::ConstantInt::get(Type::Int32->toIR(M), ++I));
+  }
+
+  return Type::Int32->toIR(M); // TODO: typed enum
+}
+
 llvm::Type *createIR(ast::GenericDecl *Decl, Module *M) {
   ast::TypeDef *TypeDef;
 
@@ -42,13 +54,10 @@ llvm::Type *createIR(ast::GenericDecl *Decl, Module *M) {
       return createStructIR(TypeDef->getTypeDecl(), M);
 
     case ast::AST_AliasDecl:
-      // auto Type =
-      //    M->getType(TypeDef->getTypeDecl()->getIdentifier())->toIR(M);
-      // return llvm::GlobalAlias::create(
-      //           Type, 0, llvm::GlobalAlias::LinkageTypes::InternalLinkage,
-      //           Decl->getIdentifier(), M)
-      //    ->getType();
       return M->getType(TypeDef->getTypeDecl()->getIdentifier())->toIR(M);
+
+    case ast::AST_EnumDecl:
+      return createEnumIR(TypeDef->getTypeDecl(), M);
     }
 
   default:

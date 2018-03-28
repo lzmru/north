@@ -80,7 +80,7 @@ Value *IRBuilder::visit(ast::StructDecl &Struct) {
   return nullptr;
 }
 
-Value *IRBuilder::visit(ast::EnumDecl &Enum) { return nullptr; }
+Value *IRBuilder::visit(ast::EnumDecl &) { return nullptr; }
 Value *IRBuilder::visit(ast::UnionDecl &) { return nullptr; }
 Value *IRBuilder::visit(ast::TupleDecl &) { return nullptr; }
 Value *IRBuilder::visit(ast::RangeDecl &) { return nullptr; }

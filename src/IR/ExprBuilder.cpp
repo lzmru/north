@@ -192,21 +192,34 @@ llvm::Value *IRBuilder::visit(ast::ArrayIndexExpr &Idx) {
 }
 
 llvm::Value *IRBuilder::visit(ast::QualifiedIdentifierExpr &Ident) {
-  auto Var = CurrentScope->lookup(Ident.getPart(0).toString());
-  auto Struct = static_cast<ast::StructInitExpr *>(Var->getValue())->getType();
+  auto FirstPart = Ident.getPart(0).toString();
 
-  unsigned I = 0;
-  for (auto F : Struct->getFieldList()) {
-    if (F->getIdentifier() == Ident.getPart(1).toString()) {
-      auto Load = Builder.CreateLoad(Var->getIRValue());
-      return Builder.CreateExtractValue(Load, {I});
+  if (auto Var = CurrentScope->lookup(FirstPart)) {
+    auto Struct =
+        static_cast<ast::StructInitExpr *>(Var->getValue())->getType();
+
+    unsigned I = 0;
+    for (auto F : Struct->getFieldList()) {
+      if (F->getIdentifier() == Ident.getPart(1).toString()) {
+        auto Load = Builder.CreateLoad(Var->getIRValue());
+        return Builder.CreateExtractValue(Load, {I});
+      }
+      ++I;
     }
-    ++I;
+
+    Diagnostic(Module->getModuleIdentifier())
+        .semanticError("structure " + Struct->getIdentifier() +
+                       "doesn't has field `" + Ident.getPart(1).toString() +
+                       "`");
   }
 
-  Diagnostic(Module->getModuleIdentifier())
-      .semanticError("structure " + Struct->getIdentifier() +
-                     "doesn't has field `" + Ident.getPart(1).toString() + "`");
+  if (auto Type = Module->getTypeOrNull(FirstPart)) {
+    auto T = static_cast<ast::TypeDef *>(Type->getDecl())->getTypeDecl();
+    if (auto Enum = dyn_cast<ast::EnumDecl>(T))
+      return Enum->getValue(Ident.getPart(1).toString());
+  }
+
+  llvm_unreachable("invalid qualified expr");
 }
 
 Value *IRBuilder::visit(ast::IfExpr &If) {
@@ -302,7 +315,7 @@ Value *IRBuilder::visit(ast::ForExpr &For) {
 
 Value *IRBuilder::visit(ast::WhileExpr &While) { return nullptr; }
 
-#define CREATE_ASSIGN(FN)                                                      \
+#define ASSIGN(FN)                                                             \
   Builder.CreateStore(Builder.Create##FN(Builder.CreateLoad(LHS), RHS), LHS);
 
 Value *IRBuilder::visit(ast::AssignExpr &Assign) {
@@ -318,28 +331,28 @@ Value *IRBuilder::visit(ast::AssignExpr &Assign) {
     return Builder.CreateStore(RHS, LHS);
 
   case Token::DivAssign:
-    return CREATE_ASSIGN(SDiv);
+    return ASSIGN(SDiv);
 
   case Token::MultAssign:
-    return CREATE_ASSIGN(Mul);
+    return ASSIGN(Mul);
 
   case Token::PlusAssign:
-    return CREATE_ASSIGN(Add);
+    return ASSIGN(Add);
 
   case Token::MinusAssign:
-    return CREATE_ASSIGN(Sub);
+    return ASSIGN(Sub);
 
   case Token::RShiftAssign:
-    return CREATE_ASSIGN(LShr);
+    return ASSIGN(LShr);
 
   case Token::LShiftAssign:
-    return CREATE_ASSIGN(Shl);
+    return ASSIGN(Shl);
 
   case Token::AndAssign:
-    return CREATE_ASSIGN(And);
+    return ASSIGN(And);
 
   case Token::OrAssign:
-    return CREATE_ASSIGN(Or);
+    return ASSIGN(Or);
   }
 
   llvm_unreachable("unsupported assign expression operator");

@@ -94,15 +94,11 @@ llvm::Value *InferenceVisitor::visit(ast::ArrayIndexExpr &Idx) {
 }
 
 llvm::Value *InferenceVisitor::visit(ast::QualifiedIdentifierExpr &Ident) {
-
-  auto getStructElementNum = []() {};
-
-  if (auto Struct = CurrentScope->lookup(Ident.getPart(0).toString())) {
-    // static_cast<llvm::StructType
-    // *>(Struct->getIRValue())->getStructElementType();
-    llvm::outs() << *Struct->getIRValue();
-  }
-  return nullptr;
+  auto I = Ident.getPart(0).toString();
+  if (auto Var = CurrentScope->lookup(I))
+    return new TypedValue(Var->getIRType());
+  if (auto Type = Mod->getTypeOrNull(I))
+    return new TypedValue(Type->toIR(Mod));
 }
 
 llvm::Value *InferenceVisitor::visit(ast::IfExpr &) { return nullptr; }

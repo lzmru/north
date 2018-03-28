@@ -29,8 +29,6 @@ public:
   void unexpectedChar(Position Found);
 
   void invalidTypeDecl(const TokenInfo &TkInfo);
-
-  void invalidEnumDecl(const TokenInfo &TkInfo);
   void invalidTupleDecl(const TokenInfo &TkInfo);
   void invalidUnionDecl(const TokenInfo &TkInfo);
 

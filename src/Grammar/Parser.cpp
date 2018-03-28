@@ -347,21 +347,12 @@ ast::UnionDecl *Parser::parseUnionDecl() {
 ///          | rangeDecl;
 ast::EnumDecl *Parser::parseEnumDecl() {
   auto Enum = new ast::EnumDecl(Buf[0]);
-  nextToken();
 
-  do {
-    switch (nextToken()) {
-    case Token::Identifier:
-    case Token::Int:
-    case Token::String:
-      Enum->addMember(Buf[0]);
-      break;
-
-    default:
-      return Enum;
-    }
-    // llvm::outs() << "\n\n" << Buf[0].toString() << "\n\n";
-  } while (match(Token::Comma));
+  // TODO: range decl in enum
+  while (match(Token::Comma)) {
+    expect(Token::Identifier);
+    Enum->addMember(Buf[0]);
+  }
 
   return Enum;
 }

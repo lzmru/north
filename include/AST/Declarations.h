@@ -6,6 +6,7 @@
 #include <vector>
 
 #include <llvm/ADT/ArrayRef.h>
+#include <llvm/ADT/StringMap.h>
 #include <llvm/IR/DerivedTypes.h>
 
 namespace llvm {
@@ -148,6 +149,7 @@ public:
 
 class EnumDecl : public GenericDecl {
   std::vector<LiteralExpr> Members;
+  llvm::StringMap<llvm::Value *> IRValues;
 
 public:
   explicit EnumDecl(const TokenInfo &Info)
@@ -157,6 +159,14 @@ public:
 
   llvm::ArrayRef<LiteralExpr> getMemberList() const { return Members; }
   void addMember(const TokenInfo &Info) { Members.emplace_back(Info); }
+
+  llvm::Value *getValue(llvm::StringRef K) const {
+    return IRValues.find(K)->second;
+  }
+  void addValue(llvm::StringRef K, llvm::Value *V) {
+    // TODO: error reporting
+    IRValues.try_emplace(K, V);
+  }
 
   AST_NODE(EnumDecl)
 };

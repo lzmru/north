@@ -31,7 +31,10 @@ unsigned distanceToEnd(const Position &Pos) {
       break;
   } while (*(Pos.Offset + Distance) != '\n');
 
-  return Distance - 1;
+  while ((Pos.Offset + Pos.Length)[Distance] != '\n')
+    --Distance;
+
+  return Distance;
 }
 
 unsigned distanceToStart(const Position &Pos) {
@@ -80,11 +83,14 @@ void renderHighlightedDiagnostic(Position Pos, const char *Message = "") {
 
   auto Start = distanceToStart(Pos), End = distanceToEnd(Pos);
 
+  // Code
   outs().resetColor() << "    " << StringRef(Pos.Offset - Start, Start);
+  // Error in code
   outs().changeColor(raw_ostream::RED, true)
       << StringRef(Pos.Offset, Pos.Length);
   outs().resetColor() << StringRef(Pos.Offset + Pos.Length, End);
 
+  // Underline (^^^^)
   outs().changeColor(raw_ostream::BLUE, true) << formatv("\n{0,=5}|", " ");
   outs().changeColor(raw_ostream::RED, true)
       << formatv("{0}{1} {2}\n", fmt_repeat(" ", Start + 5),
@@ -121,15 +127,6 @@ void Diagnostic::invalidTypeDecl(const TokenInfo &TkInfo) {
 
   printPath(Filename, TkInfo.Pos);
   printErrorMsg("invalid type declaration\n");
-  renderHighlightedDiagnostic(TkInfo.Pos, "This");
-}
-
-void Diagnostic::invalidEnumDecl(const TokenInfo &TkInfo) {
-  ++ErrorCounter;
-
-  printPath(Filename, TkInfo.Pos);
-  printErrorMsg(formatv("invalid enum declaration: expected `,`, found {0}",
-                        TkInfo.toString()));
   renderHighlightedDiagnostic(TkInfo.Pos, "This");
 }
 
