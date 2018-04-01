@@ -42,7 +42,7 @@ Value *IRBuilder::visit(ast::UnaryExpr &Unary) {
 
   switch (Unary.getOperator()) {
   case Token::Mult:
-    return Builder.CreateLoad(Expr);
+    return GetVal ? Expr : Builder.CreateLoad(Expr);
 
   case Token::Not:
     return Builder.CreateNot(Expr);
@@ -73,7 +73,6 @@ Value *IRBuilder::visit(ast::BinaryExpr &Expr) {
   GetVal = true;
   auto LHS = Expr.getLHS()->accept(*this);
   auto RHS = Expr.getRHS()->accept(*this);
-  GetVal = false;
 
   if (!LHS || !RHS)
     Diagnostic(Module->getModuleIdentifier())
@@ -146,17 +145,16 @@ Value *IRBuilder::visit(ast::LiteralExpr &Literal) {
   case Token::Int:
     return ConstantInt::get(Context, APInt(32, Token.toString(), 10));
 
+  case Token::Identifier:
+    if (auto Var = CurrentScope->lookup(Token.toString()))
+      return GetVal ? Builder.CreateLoad(Var->getIRValue()) : Var->getIRValue();
+
+    Diagnostic(Module->getModuleIdentifier())
+        .semanticError("unknown symbol `" + Token.toString() + "`");
+
   default:
-    llvm_unreachable("invalid literal");
+    return nullptr;
   }
-
-  if (auto Var = CurrentScope->lookup(Token.toString())) {
-    if (GetVal)
-      return Builder.CreateLoad(Var->getIRValue());
-    return Var->getIRValue();
-  }
-
-  Diagnostic(Module->getModuleIdentifier()).semanticError("unknown symbol");
 }
 
 Value *IRBuilder::visit(ast::RangeExpr &) { return nullptr; }
@@ -175,9 +173,10 @@ Value *IRBuilder::visit(ast::CallExpr &Callee) {
   std::vector<Value *> Args;
   if (Callee.hasArgs()) {
     Args.reserve(Callee.numberOfArgs() - 1);
-    GetVal = true;
-    for (auto &Arg : Callee.getArgumentList())
+    for (auto &Arg : Callee.getArgumentList()) {
+      GetVal = true;
       Args.push_back(Arg->accept(*this));
+    }
     GetVal = false;
   }
 
@@ -188,14 +187,7 @@ llvm::Value *IRBuilder::visit(ast::ArrayIndexExpr &Idx) {
   auto Ty = Idx.getIdentifier()->accept(*this);
   auto Index = Idx.getIdxExpr()->accept(*this);
 
-  auto Z = llvm::ConstantInt::get(Context, llvm::APInt(64, 0, true));
-  auto I = Builder.CreateBitCast(Index, IntegerType::getInt64Ty(Context));
-
-  auto Ptr = llvm::GetElementPtrInst::Create(
-      Ty->getType(), Ty, {Z, I}, "",
-      &CurrentFn->getIRValue()->getBasicBlockList().back());
-
-  return Builder.CreateLoad(Ptr);
+  return Builder.CreateLoad(Builder.CreateInBoundsGEP(Ty, {Index}));
 }
 
 llvm::Value *IRBuilder::visit(ast::QualifiedIdentifierExpr &Ident) {
@@ -308,7 +300,11 @@ Value *IRBuilder::visit(ast::ForExpr &For) {
 Value *IRBuilder::visit(ast::WhileExpr &While) { return nullptr; }
 
 #define ASSIGN(FN)                                                             \
-  Builder.CreateStore(Builder.Create##FN(Builder.CreateLoad(LHS), RHS), LHS);
+  Builder.CreateStore(Builder.Create##FN(Builder.CreateLoad(LHS),              \
+                                         RHS->getType()->isPointerTy()         \
+                                             ? Builder.CreateLoad(RHS)         \
+                                             : RHS),                           \
+                      LHS);
 
 Value *IRBuilder::visit(ast::AssignExpr &Assign) {
   auto LHS = Assign.getLHS()->accept(*this),
