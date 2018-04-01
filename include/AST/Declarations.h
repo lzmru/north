@@ -128,12 +128,11 @@ public:
 
 class StructDecl : public GenericDecl {
   std::vector<VarDecl *> Fields;
-  bool IsPacked;
   llvm::StructType *IRValue;
 
 public:
   explicit StructDecl(const Position &Pos, bool IsPacked = false)
-      : GenericDecl(Pos, AST_StructDecl, ""), IsPacked(IsPacked) {}
+      : GenericDecl(Pos, AST_StructDecl, "") {}
 
   llvm::ArrayRef<VarDecl *> getFieldList() { return Fields; }
   VarDecl *getField(uint8_t I) { return Fields[I]; }

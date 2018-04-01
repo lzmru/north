@@ -31,6 +31,8 @@ public:
 
   void setOwner(FunctionDecl *Fn) { Owner = Fn; }
   FunctionDecl *getOwner() const { return Owner; }
+  
+  BlockStmt *getParent() { return ParentBlock; }
 
   AST_NODE(BlockStmt)
 };

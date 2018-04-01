@@ -43,7 +43,9 @@ public:
 
 private:
   type::Type *getTypeFromIdent(ast::Node *);
-  llvm::Value *compareWithTrue(llvm::Value *);
+  llvm::Value *cmpWithTrue(llvm::Value *);
+  llvm::Value *getStructField(ast::Node *, llvm::Value *,
+                              ast::QualifiedIdentifierExpr &);
 };
 
 } // namespace north::ir

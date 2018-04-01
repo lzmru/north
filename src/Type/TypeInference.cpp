@@ -22,16 +22,16 @@ namespace detail {
 
 class NamedValue : public llvm::Value {
 public:
-  explicit NamedValue(llvm::StringRef Name) : Name(Name), Value(nullptr, 0) {}
+  explicit NamedValue(llvm::StringRef Name) : Value(nullptr, 0), Name(Name) {}
 
   llvm::StringRef Name;
 };
 
 class TypedValue : public llvm::Value {
 public:
-  explicit TypedValue(llvm::Type *Type) : Type(Type), Value(nullptr, 1) {}
+  explicit TypedValue(llvm::Type *Type) : Value(nullptr, 1), Type(Type) {}
   explicit TypedValue(llvm::Value *Val)
-      : Type(Val->getType()), Value(nullptr, 1) {}
+      : Value(nullptr, 1), Type(Val->getType()) {}
 
   llvm::Type *Type;
 };
@@ -71,6 +71,8 @@ llvm::Value *InferenceVisitor::visit(ast::LiteralExpr &Literal) {
     return new NamedValue("int");
   case Token::String:
     return new NamedValue("string");
+  default:
+    break;
   }
 
   if (auto Var = CurrentScope->lookup(L.toString()))
@@ -79,6 +81,7 @@ llvm::Value *InferenceVisitor::visit(ast::LiteralExpr &Literal) {
     return new TypedValue(Type->toIR(Mod));
 
   Diagnostic(Mod->getModuleIdentifier()).semanticError("unknown symbol");
+  return nullptr;
 }
 
 llvm::Value *InferenceVisitor::visit(ast::RangeExpr &) { return nullptr; }
@@ -94,11 +97,13 @@ llvm::Value *InferenceVisitor::visit(ast::ArrayIndexExpr &Idx) {
 }
 
 llvm::Value *InferenceVisitor::visit(ast::QualifiedIdentifierExpr &Ident) {
-  auto I = Ident.getPart(0).toString();
+  auto I = Ident.getPart(0);
   if (auto Var = CurrentScope->lookup(I))
     return new TypedValue(Var->getIRType());
   if (auto Type = Mod->getTypeOrNull(I))
     return new TypedValue(Type->toIR(Mod));
+  
+  return nullptr;
 }
 
 llvm::Value *InferenceVisitor::visit(ast::IfExpr &) { return nullptr; }

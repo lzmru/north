@@ -11,6 +11,7 @@
 #include "IR/IRBuilder.h"
 #include "Type/Type.h"
 #include "Type/TypeInference.h"
+
 #include <llvm/ADT/APFloat.h>
 #include <llvm/ADT/APInt.h>
 #include <llvm/IR/BasicBlock.h>

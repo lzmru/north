@@ -23,6 +23,7 @@
 #include <llvm/IR/Verifier.h>
 #include <llvm/Transforms/IPO/FunctionImport.h>
 
+#include <AST/Dumper.h>
 #include <llvm/ADT/Twine.h>
 #include <llvm/Support/FormatVariadic.h>
 #include <llvm/Support/raw_ostream.h>
@@ -62,9 +63,10 @@ Value *IRBuilder::visit(ast::UnaryExpr &Unary) {
 
   case Token::Minus:
     return Builder.CreateNeg(Expr);
-  }
 
-  llvm_unreachable("unsupported unary expression operator");
+  default:
+    llvm_unreachable("unsupported unary expression operator");
+  }
 }
 
 Value *IRBuilder::visit(ast::BinaryExpr &Expr) {
@@ -121,13 +123,14 @@ Value *IRBuilder::visit(ast::BinaryExpr &Expr) {
     return Builder.CreateICmpSGE(LHS, RHS);
 
   case Token::OrOr:
-    return Builder.CreateOr(compareWithTrue(LHS), compareWithTrue(RHS));
+    return Builder.CreateOr(cmpWithTrue(LHS), cmpWithTrue(RHS));
 
   case Token::AndAnd:
-    return Builder.CreateAnd(compareWithTrue(LHS), compareWithTrue(RHS));
-  }
+    return Builder.CreateAnd(cmpWithTrue(LHS), cmpWithTrue(RHS));
 
-  llvm_unreachable("unsupported binary expression operator");
+  default:
+    llvm_unreachable("unsupported binary expression operator");
+  }
 }
 
 Value *IRBuilder::visit(ast::LiteralExpr &Literal) {
@@ -139,8 +142,12 @@ Value *IRBuilder::visit(ast::LiteralExpr &Literal) {
                             static_cast<uint64_t>(Token.toString().front()));
   case Token::String:
     return Builder.CreateGlobalStringPtr(Token.toString());
+
   case Token::Int:
     return ConstantInt::get(Context, APInt(32, Token.toString(), 10));
+
+  default:
+    llvm_unreachable("invalid literal");
   }
 
   if (auto Var = CurrentScope->lookup(Token.toString())) {
@@ -192,34 +199,19 @@ llvm::Value *IRBuilder::visit(ast::ArrayIndexExpr &Idx) {
 }
 
 llvm::Value *IRBuilder::visit(ast::QualifiedIdentifierExpr &Ident) {
-  auto FirstPart = Ident.getPart(0).toString();
+  auto FirstPart = Ident.getPart(0);
 
-  if (auto Var = CurrentScope->lookup(FirstPart)) {
-    auto Struct =
-        static_cast<ast::StructInitExpr *>(Var->getValue())->getType();
-
-    unsigned I = 0;
-    for (auto F : Struct->getFieldList()) {
-      if (F->getIdentifier() == Ident.getPart(1).toString()) {
-        auto Load = Builder.CreateLoad(Var->getIRValue());
-        return Builder.CreateExtractValue(Load, {I});
-      }
-      ++I;
-    }
-
-    Diagnostic(Module->getModuleIdentifier())
-        .semanticError("structure " + Struct->getIdentifier() +
-                       "doesn't has field `" + Ident.getPart(1).toString() +
-                       "`");
-  }
+  if (auto Var = CurrentScope->lookup(FirstPart))
+    return getStructField(Var->getValue(), Var->getIRValue(), Ident);
 
   if (auto Type = Module->getTypeOrNull(FirstPart)) {
     auto T = static_cast<ast::TypeDef *>(Type->getDecl())->getTypeDecl();
     if (auto Enum = dyn_cast<ast::EnumDecl>(T))
-      return Enum->getValue(Ident.getPart(1).toString());
+      return Enum->getValue(Ident.getPart(1));
   }
 
   llvm_unreachable("invalid qualified expr");
+  return nullptr;
 }
 
 Value *IRBuilder::visit(ast::IfExpr &If) {
@@ -231,7 +223,7 @@ Value *IRBuilder::visit(ast::IfExpr &If) {
     Diagnostic(Module->getModuleIdentifier())
         .semanticError("empty if condition");
 
-  Cond = compareWithTrue(Cond);
+  Cond = cmpWithTrue(Cond);
 
   Function *Fn = Builder.GetInsertBlock()->getParent();
 
@@ -353,16 +345,16 @@ Value *IRBuilder::visit(ast::AssignExpr &Assign) {
 
   case Token::OrAssign:
     return ASSIGN(Or);
-  }
 
-  llvm_unreachable("unsupported assign expression operator");
+  default:
+    llvm_unreachable("unsupported assign expression operator");
+  }
 }
 
 Value *IRBuilder::visit(ast::StructInitExpr &Struct) {
   auto Ty = getTypeFromIdent(Struct.getIdentifier());
   auto TypeDef = static_cast<ast::TypeDef *>(Ty->getDecl());
-  auto StructDecl = static_cast<ast::StructDecl *>(TypeDef->getTypeDecl());
-  Struct.setType(StructDecl);
+  Struct.setType(static_cast<ast::StructDecl *>(TypeDef->getTypeDecl()));
 
   std::vector<Constant *> Fields;
   GetVal = true;

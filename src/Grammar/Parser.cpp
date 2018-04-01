@@ -542,7 +542,7 @@ ast::StructInitExpr *Parser::parseStructInitExpr(ast::Node *Ident) {
   auto Expr = new ast::StructInitExpr(Ident);
 
   do {
-    Expr->addValue(parseExpression(Call));
+    Expr->addValue(parseExpression());
   } while (match(Token::Comma));
 
   expect(Token::RBrace);
@@ -611,7 +611,6 @@ ast::ForExpr *Parser::parseForExpr() {
     return Loop;
   } else {
   __error:
-    delete Loop;
     Diagnostic(Filename).invalidForExpr(Buf[0]);
     return nullptr;
   }

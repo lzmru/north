@@ -341,7 +341,9 @@ __start:
 
   if (*Pos.Offset == '\0' || Pos.Offset >= BufferEnd)
     return makeEof();
+  
   Diagnostic(Filename).unexpectedChar(Pos);
+  return {};
 }
 
 } // namespace north

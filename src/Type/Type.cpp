@@ -12,6 +12,7 @@
 
 #include <llvm/ADT/StringSwitch.h>
 #include <llvm/Support/raw_ostream.h>
+#include <llvm/ADT/Twine.h>
 
 namespace north::type {
 
@@ -24,10 +25,11 @@ template <bool IsPointer = false, typename T> Type *createPrimitive(T IRType) {
 }
 
 llvm::Type *createStructIR(ast::GenericDecl *Decl, Module *M) {
-  auto Struct = llvm::StructType::create(ir::IRBuilder::getContext(),
-                                         Decl->getIdentifier());
-  static_cast<ast::StructDecl *>(Decl)->setIR(Struct);
-  return Struct;
+  auto Struct = static_cast<ast::TypeDef *>(Decl)->getTypeDecl();
+  auto IR = llvm::StructType::create(ir::IRBuilder::getContext(),
+                                     Decl->getIdentifier());
+  static_cast<ast::StructDecl *>(Struct)->setIR(IR);
+  return IR;
 }
 
 llvm::Type *createEnumIR(ast::GenericDecl *Decl, Module *M) {
@@ -51,13 +53,16 @@ llvm::Type *createIR(ast::GenericDecl *Decl, Module *M) {
 
     switch (TypeDef->getTypeDecl()->getKind()) {
     case ast::AST_StructDecl:
-      return createStructIR(TypeDef->getTypeDecl(), M);
+      return createStructIR(TypeDef, M);
 
     case ast::AST_AliasDecl:
       return M->getType(TypeDef->getTypeDecl()->getIdentifier())->toIR(M);
 
     case ast::AST_EnumDecl:
       return createEnumIR(TypeDef->getTypeDecl(), M);
+        
+    default:
+      break;
     }
 
   default:

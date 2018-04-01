@@ -42,8 +42,10 @@ Type *Module::getType(llvm::StringRef Name) const {
   auto res = TypeList.find(Name);
   if (res != TypeList.end())
     return res->second;
+  
   Diagnostic(llvm::Module::getSourceFileName())
       .semanticError("The type '" + Name + "' is undefined");
+  return nullptr;
 }
 
 Type *Module::getTypeOrNull(llvm::StringRef Name) const {
@@ -59,6 +61,7 @@ Module::InterfaceDecl *Module::getInterface(llvm::StringRef Name) const {
     return res->second;
   Diagnostic(llvm::Module::getSourceFileName())
       .semanticError("The interface '" + Name + "' is undefined");
+  return nullptr;
 }
 
 void Module::addType(north::ast::GenericDecl *TypeDecl) {

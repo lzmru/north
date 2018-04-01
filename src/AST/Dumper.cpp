@@ -112,8 +112,7 @@ public:
 
   void printArgumentList(CallExpr &Func) {
     NodePrinter Node("Arguments");
-    int i = 0;
-
+    
     for (auto Arg : Func.getArgumentList()) {
       Dumper Dump;
       Arg->accept(Dump);

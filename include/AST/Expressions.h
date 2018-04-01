@@ -125,7 +125,8 @@ public:
   }
 
   llvm::ArrayRef<TokenInfo> getIdentifier() { return Ident; }
-  TokenInfo getPart(uint8_t I) { return Ident[I]; }
+  llvm::StringRef getPart(uint8_t I) { return Ident[I].toString(); }
+  unsigned getSize() { return Ident.size(); }
   void AddPart(const TokenInfo &TkInfo) { Ident.push_back(TkInfo); }
 
   AST_NODE(QualifiedIdentifierExpr)
@@ -227,6 +228,7 @@ public:
 
   void addValue(Node *Val) { Values.push_back(Val); }
   llvm::ArrayRef<Node *> getValues() { return Values; }
+  Node *getValue(size_t I) { return Values[I]; }
   Node *getIdentifier() { return Identifier; }
 
   void setType(StructDecl *T) { Type = T; }
