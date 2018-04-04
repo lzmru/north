@@ -147,7 +147,8 @@ Value *IRBuilder::visit(ast::LiteralExpr &Literal) {
 
   case Token::Identifier:
     if (auto Var = CurrentScope->lookup(Token.toString()))
-      return GetVal ? Builder.CreateLoad(Var->getIRValue()) : Var->getIRValue();
+      return GetVal && !Var->isArg() ? Builder.CreateLoad(Var->getIRValue())
+                                     : Var->getIRValue();
 
     Diagnostic(Module->getModuleIdentifier())
         .semanticError("unknown symbol `" + Token.toString() + "`");
@@ -180,7 +181,9 @@ Value *IRBuilder::visit(ast::CallExpr &Callee) {
     GetVal = false;
   }
 
-  return Builder.CreateCall(Fn->getFunctionType(), Fn, Args);
+  auto IR = Builder.CreateCall(Fn->getFunctionType(), Fn, Args);
+  Callee.setIR(IR);
+  return IR;
 }
 
 llvm::Value *IRBuilder::visit(ast::ArrayIndexExpr &Idx) {

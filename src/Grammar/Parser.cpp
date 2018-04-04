@@ -705,15 +705,10 @@ void Parser::parseArgumentList(ast::FunctionDecl *Function) {
       Function->setVarArg(true);
       break;
     }
-    Function->addArgument(parseVarDecl());
+    Function->addArgument(parseVarDecl(true));
   } while (match(Token::Comma));
 
   expect(Token::RParen);
-
-  // TODO
-  // if (!Lex.getIndentLevel()) {
-  //  llvm::GlobalVariable var();
-  //}
 }
 
 // TODO: labelStmt, breakStmt, continueStmt
@@ -764,11 +759,11 @@ ast::BlockStmt *Parser::parseBlockStmt() {
 }
 
 /// varDecl = IDENTIFIER [':' typeDecl] ['=' expr];
-ast::VarDecl *Parser::parseVarDecl() {
+ast::VarDecl *Parser::parseVarDecl(bool IsArg) {
   if (!match(Token::Identifier))
     return nullptr;
 
-  auto Result = new ast::VarDecl(Buf[0]);
+  auto Result = new ast::VarDecl(Buf[0], IsArg);
   if (match(Token::Colon))
     Result->setType(parseTypeDecl());
   if (match(Token::Assign))

@@ -175,7 +175,7 @@ __start:
   Pos.Length = 0;
 
   if (isalpha(*Pos.Offset)) {
-    while (isalnum(Pos.Offset[++Pos.Length]))
+    while (isalnum(Pos.Offset[++Pos.Length]) || Pos.Offset[Pos.Length] == '_')
       ;
 
     return makeToken(keywordOrIdentifier());
@@ -341,7 +341,7 @@ __start:
 
   if (*Pos.Offset == '\0' || Pos.Offset >= BufferEnd)
     return makeEof();
-  
+
   Diagnostic(Filename).unexpectedChar(Pos);
   return {};
 }

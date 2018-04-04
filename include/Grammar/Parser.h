@@ -89,7 +89,7 @@ private:
   ast::Node *parsePrimary();
   ast::BlockStmt *parseBlockStmt();
 
-  ast::VarDecl *parseVarDecl();
+  ast::VarDecl *parseVarDecl(bool IsArg = false);
 
   void parseGenericTypeList(ast::GenericDecl *);
   void parseGenericType(ast::GenericDecl *);

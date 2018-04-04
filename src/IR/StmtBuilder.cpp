@@ -60,8 +60,10 @@ Value *IRBuilder::visit(ast::BlockStmt &Block) {
 }
 
 Value *IRBuilder::visit(ast::ReturnStmt &Return) {
-  if (auto Expr = Return.getReturnExpr())
+  if (auto Expr = Return.getReturnExpr()) {
+    GetVal = true;
     return Builder.CreateRet(Expr->accept(*this));
+  }
   return Builder.CreateRetVoid();
 }
 

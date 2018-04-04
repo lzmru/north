@@ -11,7 +11,6 @@
 #include "Diagnostic.h"
 #include "IR/IRBuilder.h"
 #include "Type/Type.h"
-
 #include <llvm/Support/raw_ostream.h>
 
 namespace north::ir {
@@ -34,32 +33,68 @@ Value *IRBuilder::cmpWithTrue(llvm::Value *Val) {
 
 Value *IRBuilder::getStructField(ast::Node *Expr, Value *IR,
                                  ast::QualifiedIdentifierExpr &Ident) {
-  auto InitExpr = static_cast<ast::StructInitExpr *>(Expr);
-  auto IRVal = IR;
+  if (auto InitExpr = dyn_cast<ast::StructInitExpr>(Expr)) {
+    auto IRVal = IR;
 
-  auto getFieldNumber = [&](StringRef FieldName) -> Constant * {
-    auto Struct = InitExpr->getType();
-    uint64_t I = 0;
-    for (auto F : Struct->getFieldList()) {
-      if (F->getIdentifier() == FieldName) {
-        InitExpr = static_cast<ast::StructInitExpr *>(InitExpr->getValue(I));
-        return ConstantInt::get(IntegerType::getInt32Ty(Context), I);
+    auto getFieldNumber = [&](StringRef FieldName) -> Constant * {
+      auto Struct = InitExpr->getType();
+      uint64_t I = 0;
+      for (auto F : Struct->getFieldList()) {
+        if (F->getIdentifier() == FieldName) {
+          InitExpr = static_cast<ast::StructInitExpr *>(InitExpr->getValue(I));
+          return ConstantInt::get(IntegerType::getInt32Ty(Context), I);
+        }
+        ++I;
       }
-      ++I;
+
+      Diagnostic(Module->getModuleIdentifier())
+          .semanticError("structure " + Struct->getIdentifier() +
+                         "doesn't has field `" + FieldName + "`");
+    };
+
+    std::vector<Value *> Indicies{
+        ConstantInt::get(IntegerType::getInt32Ty(Context), 0)};
+    for (auto Part = 1; Part <= Ident.getSize() - 1; ++Part)
+      Indicies.push_back(getFieldNumber(Ident.getPart(Part)));
+
+    auto GEP = Builder.CreateInBoundsGEP(IRVal, Indicies);
+    return GetVal ? Builder.CreateLoad(GEP) : GEP;
+  }
+
+  if (auto InitExpr = dyn_cast<ast::CallExpr>(Expr)) {
+    auto IRVal = IR;
+    auto Identifier = InitExpr->getIR()->getType()->getStructName();
+
+    auto getFieldNumber = [&](StringRef FieldName) -> Constant * {
+      auto TypeDecl = Module.get()->getType(Identifier)->getDecl();
+      auto Struct = static_cast<ast::StructDecl *>(
+          static_cast<ast::TypeDef *>(TypeDecl)->getTypeDecl());
+
+      uint64_t I = 0;
+      for (auto F : Struct->getFieldList()) {
+        if (F->getIdentifier() == FieldName) {
+          Identifier = Struct->getField(I)->getType()->getIdentifier();
+          return ConstantInt::get(IntegerType::getInt32Ty(Context), I);
+        }
+        ++I;
+      }
+
+      Diagnostic(Module->getModuleIdentifier())
+          .semanticError("structure " + Struct->getIdentifier() +
+                         "doesn't has field `" + FieldName + "`");
+    };
+
+    std::vector<Value *> Indicies{
+        ConstantInt::get(IntegerType::getInt32Ty(Context), 0)};
+    for (auto Part = 1; Part <= Ident.getSize() - 1; ++Part) {
+      Indicies.push_back(getFieldNumber(Ident.getPart(Part)));
     }
 
-    Diagnostic(Module->getModuleIdentifier())
-        .semanticError("structure " + Struct->getIdentifier() +
-                       "doesn't has field `" + FieldName + "`");
-  };
+    auto GEP = Builder.CreateInBoundsGEP(IRVal, Indicies);
+    return GetVal ? Builder.CreateLoad(GEP) : GEP;
+  }
 
-  std::vector<Value *> Indicies{
-      ConstantInt::get(IntegerType::getInt32Ty(Context), 0)};
-  for (auto Part = 1; Part <= Ident.getSize() - 1; ++Part)
-    Indicies.push_back(getFieldNumber(Ident.getPart(Part)));
-
-  auto GEP = Builder.CreateInBoundsGEP(IRVal, Indicies);
-  return GetVal ? Builder.CreateLoad(GEP) : GEP;
+  llvm_unreachable("struct w/o initializer");
 }
 
 } // namespace north::ir

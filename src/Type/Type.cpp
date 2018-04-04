@@ -11,8 +11,8 @@
 #include "IR/IRBuilder.h"
 
 #include <llvm/ADT/StringSwitch.h>
-#include <llvm/Support/raw_ostream.h>
 #include <llvm/ADT/Twine.h>
+#include <llvm/Support/raw_ostream.h>
 
 namespace north::type {
 
@@ -60,7 +60,7 @@ llvm::Type *createIR(ast::GenericDecl *Decl, Module *M) {
 
     case ast::AST_EnumDecl:
       return createEnumIR(TypeDef->getTypeDecl(), M);
-        
+
     default:
       break;
     }

@@ -80,6 +80,7 @@ public:
 class CallExpr : public Node {
   std::vector<Node *> Args;
   llvm::StringRef Ident;
+  llvm::Value *IRValue;
 
 public:
   explicit CallExpr(Node *Identifier)
@@ -94,6 +95,9 @@ public:
 
   void setIdentifier(llvm::StringRef NewIdent) { Ident = NewIdent; }
   llvm::StringRef getIdentifier() { return Ident; }
+
+  llvm::Value *getIR() { return IRValue; }
+  void setIR(llvm::Value *Val) { IRValue = Val; }
 
   AST_NODE(CallExpr)
 };

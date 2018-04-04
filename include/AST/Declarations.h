@@ -68,11 +68,12 @@ class VarDecl : public Declaration {
   std::unique_ptr<Node> Value;
   llvm::Value *IRValue;
   llvm::Type *IRType;
+  bool IsArg;
 
 public:
-  explicit VarDecl(const TokenInfo &TkInfo)
+  explicit VarDecl(const TokenInfo &TkInfo, bool Arg = false)
       : Declaration(TkInfo.Pos, AST_VarDecl, TkInfo.toString()), Type(nullptr),
-        Value(nullptr), IRValue(nullptr) {}
+        Value(nullptr), IRValue(nullptr), IsArg(Arg) {}
 
   GenericDecl *getType() { return Type.get(); }
   void setType(GenericDecl *NewType) { Type.reset(NewType); }
@@ -85,6 +86,8 @@ public:
 
   llvm::Type *getIRType() { return IRType; }
   void setIRType(llvm::Type *T) { IRType = T; }
+
+  bool isArg() { return IsArg; }
 
   AST_NODE(VarDecl)
 };
