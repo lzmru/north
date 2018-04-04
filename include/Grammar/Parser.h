@@ -40,8 +40,11 @@ class Parser {
 
 public:
   explicit Parser(const char *Filename)
-      : Filename(Filename), Lex(Filename), Peeked(false),
-        Module(new type::Module(Filename, ir::IRBuilder::getContext())) {}
+      : Parser(new type::Module(Filename, ir::IRBuilder::getContext()),
+               Filename) {}
+
+  explicit Parser(type::Module *Module, const char *Filename)
+      : Filename(Filename), Lex(Filename), Peeked(false), Module(Module) {}
 
   north::type::Module *parse();
 

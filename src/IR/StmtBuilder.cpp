@@ -7,23 +7,14 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "AST/Dumper.h"
 #include "Diagnostic.h"
+#include "Grammar/Parser.h"
 #include "IR/IRBuilder.h"
 #include "Type/Type.h"
 #include "Type/TypeInference.h"
-#include <llvm/ADT/APFloat.h>
-#include <llvm/ADT/APInt.h>
-#include <llvm/IR/BasicBlock.h>
-#include <llvm/IR/Constants.h>
-#include <llvm/IR/DerivedTypes.h>
-#include <llvm/IR/Function.h>
-#include <llvm/IR/Type.h>
-#include <llvm/IR/ValueSymbolTable.h>
-#include <llvm/IR/Verifier.h>
-#include <llvm/Transforms/IPO/FunctionImport.h>
 
-#include <llvm/ADT/Twine.h>
-#include <llvm/Support/FormatVariadic.h>
+#include <llvm/Support/Path.h>
 #include <llvm/Support/raw_ostream.h>
 
 #define M Module.get()
@@ -35,7 +26,18 @@ using namespace llvm;
 llvm::LLVMContext IRBuilder::Context;
 
 Value *IRBuilder::visit(ast::OpenStmt &O) {
-  // FunctionImporter FI(M->getProfileSummary(), );
+  std::string Path = sys::path::parent_path(Module->getSourceFileName());
+  Path += "/";
+  Path += O.getModuleName();
+  Path += ".north";
+
+  north::Parser parser(&*Module, Path.c_str());
+  auto Module = parser.parse();
+
+  for (auto I = Module->getAST()->begin(), E = Module->getAST()->end(); I != E;
+       ++I)
+    I->accept(*this);
+
   return nullptr;
 }
 

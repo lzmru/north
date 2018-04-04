@@ -43,7 +43,6 @@ Value *IRBuilder::getStructField(ast::Node *Expr, Value *IR,
     for (auto F : Struct->getFieldList()) {
       if (F->getIdentifier() == FieldName) {
         InitExpr = static_cast<ast::StructInitExpr *>(InitExpr->getValue(I));
-        outs() << F->getIdentifier() << '\n';
         return ConstantInt::get(IntegerType::getInt32Ty(Context), I);
       }
       ++I;
@@ -56,11 +55,9 @@ Value *IRBuilder::getStructField(ast::Node *Expr, Value *IR,
 
   std::vector<Value *> Indicies{
       ConstantInt::get(IntegerType::getInt32Ty(Context), 0)};
-  for (auto Part = 1; Part <= Ident.getSize() - 1; ++Part) {
+  for (auto Part = 1; Part <= Ident.getSize() - 1; ++Part)
     Indicies.push_back(getFieldNumber(Ident.getPart(Part)));
-  }
 
-__gep:
   auto GEP = Builder.CreateInBoundsGEP(IRVal, Indicies);
   return GetVal ? Builder.CreateLoad(GEP) : GEP;
 }

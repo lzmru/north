@@ -13,11 +13,7 @@
 #include "AST/AST.h"
 #include "Diagnostic.h"
 
-#include <llvm/IR/CallingConv.h>
 #include <llvm/IR/Function.h>
-#include <llvm/IR/IRBuilder.h>
-#include <llvm/IR/Module.h>
-#include <llvm/IR/PassManager.h>
 
 namespace north {
 
@@ -55,7 +51,6 @@ bool Parser::match(Token With) {
 void Parser::expect(Token What) {
   if (!match(What)) {
     nextToken();
-    // throw std::runtime_error("qwe");
     Diagnostic(Filename).expectedToken(What, Buf[0]);
   }
 }
@@ -211,11 +206,7 @@ north::type::Module *Parser::parse() {
       return Module;
 
     default:
-      llvm::outs() << Buf[0].Pos.Line << ':' << Buf[0].Pos.Column
-                   << " default: "
-                   << llvm::StringRef(Buf[0].Pos.Offset, Buf[0].Pos.Length)
-                   << " " << tokenToString(Buf[0].Type) << '\n';
-      // return nullptr;
+      Diagnostic(Filename).unexpectedChar(Buf[0].Pos);
     }
   }
 }

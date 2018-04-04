@@ -42,7 +42,7 @@ Type *Module::getType(llvm::StringRef Name) const {
   auto res = TypeList.find(Name);
   if (res != TypeList.end())
     return res->second;
-  
+
   Diagnostic(llvm::Module::getSourceFileName())
       .semanticError("The type '" + Name + "' is undefined");
   return nullptr;

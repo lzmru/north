@@ -30,12 +30,5 @@ set(SOURCE_FILES
 
 add_executable(north ${SOURCE_FILES})
 
-llvm_map_components_to_libnames(
-        llvm_libs
-        core
-        executionengine
-        analysis
-        native
-        bitwriter
-        aarch64asmparser aarch64asmprinter aarch64codegen aarch64desc aarch64disassembler aarch64info aarch64utils all)
-target_link_libraries(north ${llvm_libs})
+llvm_map_components_to_libnames(llvm_libs all)
+target_link_libraries(north -v ${llvm_libs})
