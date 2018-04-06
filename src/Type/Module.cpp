@@ -23,7 +23,7 @@ using namespace sys::path;
 Module::Module(llvm::StringRef ModuleID, llvm::LLVMContext &C)
     : llvm::Module(stem(ModuleID), C), GlobalScope(new Scope(this)) {
 
-  llvm::Module::setSourceFileName(ModuleID);
+  setSourceFileName(ModuleID);
 
   TypeList.try_emplace("void", Type::Void);
   TypeList.try_emplace("int", Type::Int);
@@ -43,7 +43,7 @@ Type *Module::getType(llvm::StringRef Name) const {
   if (res != TypeList.end())
     return res->second;
 
-  Diagnostic(llvm::Module::getSourceFileName())
+  Diagnostic(getSourceFileName())
       .semanticError("The type '" + Name + "' is undefined");
   return nullptr;
 }
@@ -59,7 +59,7 @@ Module::InterfaceDecl *Module::getInterface(llvm::StringRef Name) const {
   auto res = InterfaceList.find(Name);
   if (res != InterfaceList.end())
     return res->second;
-  Diagnostic(llvm::Module::getSourceFileName())
+  Diagnostic(getSourceFileName())
       .semanticError("The interface '" + Name + "' is undefined");
   return nullptr;
 }
@@ -67,7 +67,7 @@ Module::InterfaceDecl *Module::getInterface(llvm::StringRef Name) const {
 void Module::addType(north::ast::GenericDecl *TypeDecl) {
   if (!TypeList.try_emplace(TypeDecl->getIdentifier(), new Type(TypeDecl, this))
            .second) {
-    Diagnostic(llvm::Module::getSourceFileName())
+    Diagnostic(getSourceFileName())
         .semanticError("Duplicate definition of type '" +
                        TypeDecl->getIdentifier() + "'");
   }
@@ -76,7 +76,7 @@ void Module::addType(north::ast::GenericDecl *TypeDecl) {
 void Module::addInterface(north::ast::InterfaceDecl *Interface) {
   if (!InterfaceList.try_emplace(Interface->getIdentifier(), Interface)
            .second) {
-    Diagnostic(llvm::Module::getSourceFileName())
+    Diagnostic(getSourceFileName())
         .semanticError("Duplicate definition of interface '" +
                        Interface->getIdentifier() + "'");
   }

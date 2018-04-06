@@ -38,8 +38,18 @@ Value *IRBuilder::visit(ast::FunctionDecl &Fn) {
     return nullptr;
   auto BB = BasicBlock::Create(Context, "entry", Fn.getIRValue());
   Builder.SetInsertPoint(BB);
-  // inferFunctionType(Fn, M);
   CurrentFn = &Fn;
+
+  if (Fn.getBlockStmt()) {
+    auto IRType = inferFunctionType(Fn, M, CurrentScope)->toIR(M);
+    auto NorthType =
+        Module->getType(Fn.getTypeDecl()->getIdentifier())->toIR(M);
+    if (IRType != NorthType)
+      Diagnostic(Module->getModuleIdentifier())
+          .semanticError("return value type of `" + Fn.getIdentifier() +
+                         "` does't match the function type");
+  }
+
   return Fn.getBlockStmt()->accept(*this);
 }
 
@@ -52,6 +62,11 @@ Value *IRBuilder::visit(ast::VarDecl &Var) {
     Type = Module->getType(Var.getType()->getIdentifier())->toIR(M);
     if (TypeDecl->isPtr())
       Type = Type->getPointerTo(0);
+
+    if (inferVarType(Var, M, CurrentScope)->toIR(M) != Type)
+      Diagnostic(Module->getModuleIdentifier())
+          .semanticError("type of value `" + Var.getIdentifier() +
+                         "` type does't match the variable type");
   } else {
     Type = inferVarType(Var, M, CurrentScope)->toIR(M);
     Var.setIRType(Type);

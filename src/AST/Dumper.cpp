@@ -112,7 +112,7 @@ public:
 
   void printArgumentList(CallExpr &Func) {
     NodePrinter Node("Arguments");
-    
+
     for (auto Arg : Func.getArgumentList()) {
       Dumper Dump;
       Arg->accept(Dump);
@@ -152,7 +152,9 @@ Value *Dumper::visit(FunctionDecl &Func) {
 
   if (auto Type = Func.getTypeDecl()) {
     Node.printField("Type");
-    Node.printIdentifier(Type->getIdentifier()) << ",\n";
+    Node.offOutIndent();
+    Type->accept(*this);
+    // Node.printIdentifier(Type->getIdentifier()) << ",\n";
   }
 
   if (Func.hasGenerics())
@@ -206,11 +208,16 @@ Value *Dumper::visit(VarDecl &Var) {
 }
 
 Value *Dumper::visit(AliasDecl &Alias) {
-  NodePrinter Node("AliasDecl", Alias, false);
+  NodePrinter Node("AliasDecl", Alias, Alias.hasGenerics());
 
-  Node.printIdentifier(Alias.getIdentifier());
   if (Alias.hasGenerics())
+    Node.printField("Name");
+  Node.printIdentifier(Alias.getIdentifier());
+  if (Alias.hasGenerics()) {
+    outs() << '\n';
+    Node.indent();
     Node.printGenericList(Alias);
+  }
 
   return nullptr;
 }
