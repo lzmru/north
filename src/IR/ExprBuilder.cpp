@@ -220,14 +220,13 @@ Value *IRBuilder::visit(ast::IfExpr &If) {
 
   Cond = cmpWithTrue(Cond);
 
-  Function *Fn = Builder.GetInsertBlock()->getParent();
-
-  BasicBlock *ThenBB = BasicBlock::Create(Context, "then", Fn);
-  BasicBlock *ElseBB = BasicBlock::Create(Context, "else");
-  BasicBlock *MergeBB = BasicBlock::Create(Context, "ifcont");
+  auto Fn = Builder.GetInsertBlock()->getParent();
+  auto ThenBB = BasicBlock::Create(Context, "then", Fn);
+  auto MergeBB = BasicBlock::Create(Context, "ifcont");
+  auto ElseBB =
+      If.getElseBranch() ? BasicBlock::Create(Context, "else") : MergeBB;
 
   Builder.CreateCondBr(Cond, ThenBB, ElseBB);
-
   Builder.SetInsertPoint(ThenBB);
 
   if (!If.getBlock())
@@ -237,20 +236,23 @@ Value *IRBuilder::visit(ast::IfExpr &If) {
   Builder.CreateBr(MergeBB);
   ThenBB = Builder.GetInsertBlock();
 
-  // Emit else block.
-  Fn->getBasicBlockList().push_back(ElseBB);
-  Builder.SetInsertPoint(ElseBB);
+  Value *Else = nullptr;
+  if (auto ElseBranch = If.getElseBranch()) {
+    Fn->getBasicBlockList().push_back(ElseBB);
+    Builder.SetInsertPoint(ElseBB);
 
-  Value *Else = Builder.CreateICmp(
-      llvm::CmpInst::ICMP_NE, Cond,
-      ConstantInt::get(Type::getInt1Ty(Context), 1, false), "ifcond");
-  if (auto ElseBlock = If.getElseBranch()->getBlock())
-    ElseBlock->accept(*this);
-  else
-    Diagnostic(Module->getModuleIdentifier()).semanticError("empty else block");
+    Else = Builder.CreateICmp(
+        llvm::CmpInst::ICMP_NE, Cond,
+        ConstantInt::get(Type::getInt1Ty(Context), 1, false), "ifcond");
+    if (auto ElseBlock = ElseBranch->getBlock())
+      ElseBlock->accept(*this);
+    else
+      Diagnostic(Module->getModuleIdentifier())
+          .semanticError("empty else block");
 
-  Builder.CreateBr(MergeBB);
-  ElseBB = Builder.GetInsertBlock();
+    Builder.CreateBr(MergeBB);
+    ElseBB = Builder.GetInsertBlock();
+  }
 
   Fn->getBasicBlockList().push_back(MergeBB);
   Builder.SetInsertPoint(MergeBB);
@@ -258,16 +260,18 @@ Value *IRBuilder::visit(ast::IfExpr &If) {
   PHINode *PN = Builder.CreatePHI(Type::getInt1Ty(Context), 2, "iftmp");
 
   PN->addIncoming(Cond, ThenBB);
-  PN->addIncoming(Else, ElseBB);
+  if (Else)
+    PN->addIncoming(Else, ElseBB);
 
   return PN;
 }
 
 Value *IRBuilder::visit(ast::ForExpr &For) {
   auto Range = static_cast<ast::RangeExpr *>(For.getRange());
+  auto Iter = static_cast<ast::LiteralExpr *>(For.getIter());
+
   auto StartVal = Range->getBeginValue()->accept(*this);
   auto EndVal = Range->getEndValue()->accept(*this);
-  auto Iter = static_cast<ast::LiteralExpr *>(For.getIter());
 
   if (!StartVal || !EndVal)
     Diagnostic(Module->getModuleIdentifier()).semanticError("invalid range");

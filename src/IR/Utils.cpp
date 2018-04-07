@@ -21,7 +21,9 @@ type::Type *IRBuilder::getTypeFromIdent(ast::Node *Ident) {
   if (auto Literal = dyn_cast<ast::LiteralExpr>(Ident)) {
     if (auto Type = Module->getTypeOrNull(Literal->getTokenInfo().toString()))
       return Type;
-    Diagnostic(Module->getModuleIdentifier()).semanticError("unknown symbol");
+    Diagnostic(Module->getModuleIdentifier())
+        .semanticError("unknown symbol `" + Literal->getTokenInfo().toString() +
+                       "`");
   }
 
   llvm_unreachable("getTypeFromIdent() argument must be a literal");
@@ -29,7 +31,7 @@ type::Type *IRBuilder::getTypeFromIdent(ast::Node *Ident) {
 }
 
 Value *IRBuilder::cmpWithTrue(llvm::Value *Val) {
-  return Builder.CreateICmpSGE(Val, ConstantInt::get(Val->getType(), 1, false));
+  return Builder.CreateICmpEQ(Val, ConstantInt::get(Val->getType(), 1, false));
 }
 
 Value *IRBuilder::getStructField(ast::Node *Expr, Value *IR,
