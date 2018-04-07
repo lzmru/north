@@ -279,23 +279,25 @@ Value *IRBuilder::visit(ast::ForExpr &For) {
   Builder.CreateBr(LoopBB);
   Builder.SetInsertPoint(LoopBB);
 
-  auto VarName = Iter->getTokenInfo().toString();
-  PHINode *Variable = Builder.CreatePHI(Type::getInt32Ty(Context), 2, VarName);
-  Variable->addIncoming(StartVal, PreheaderBB);
+  auto ASTVar = new ast::VarDecl(Iter->getTokenInfo(), true);
+  auto IRVar =
+      Builder.CreatePHI(Type::getInt32Ty(Context), 2, ASTVar->getIdentifier());
+  IRVar->addIncoming(StartVal, PreheaderBB);
+
+  ASTVar->setIRValue(IRVar);
+  CurrentScope->addElement(ASTVar);
 
   auto Body = For.getBlock()->accept(*this);
-  Value *StepVal = ConstantInt::get(Context, APInt(32, 1));
-  auto NextVar = Builder.CreateAdd(Variable, StepVal, "nextvar");
-
-  Value *Cond = Builder.CreateICmpNE(StartVal, EndVal, "loopcond");
+  auto StepVal = ConstantInt::get(Context, APInt(32, 1));
+  auto NextVar = Builder.CreateAdd(IRVar, StepVal, "nextvar");
 
   BasicBlock *LoopEndBB = Builder.GetInsertBlock();
   BasicBlock *AfterBB = BasicBlock::Create(Context, "afterloop", Fn);
 
-  Builder.CreateCondBr(Cond, LoopBB, AfterBB);
+  Builder.CreateCondBr(Builder.CreateICmpSLT(NextVar, EndVal), LoopBB, AfterBB);
   Builder.SetInsertPoint(AfterBB);
 
-  Variable->addIncoming(NextVar, LoopEndBB);
+  IRVar->addIncoming(NextVar, LoopEndBB);
 
   return Constant::getNullValue(Type::getInt32Ty(Context));
 }

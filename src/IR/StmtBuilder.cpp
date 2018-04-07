@@ -31,11 +31,11 @@ Value *IRBuilder::visit(ast::OpenStmt &O) {
   Path += O.getModuleName();
   Path += ".north";
 
-  north::Parser parser(&*Module, Path.c_str());
-  auto Module = parser.parse();
+  north::Parser TheParser(&*Module, Path.c_str());
+  auto NewMod = TheParser.parse();
 
-  for (auto I = Module->getAST()->begin(), E = Module->getAST()->end(); I != E;
-       ++I)
+  auto AST = NewMod->getAST();
+  for (auto I = AST->begin(), E = AST->end(); I != E; ++I)
     I->accept(*this);
 
   return nullptr;
@@ -54,6 +54,14 @@ Value *IRBuilder::visit(ast::BlockStmt &Block) {
     for (auto I = Body->begin(), E = Body->end(); I != E; ++I)
       Result = I->accept(*this);
   }
+
+  auto IRType = type::inferFunctionType(*CurrentFn, M, CurrentScope)->toIR(M);
+  auto NorthType =
+      Module->getType(CurrentFn->getTypeDecl()->getIdentifier())->toIR(M);
+  if (IRType != NorthType)
+    Diagnostic(Module->getModuleIdentifier())
+        .semanticError("return value type of `" + CurrentFn->getIdentifier() +
+                       "` does't match the function type");
 
   CurrentScope = Scope.getParent();
   return Result;

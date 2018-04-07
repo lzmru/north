@@ -36,19 +36,10 @@ using namespace llvm;
 Value *IRBuilder::visit(ast::FunctionDecl &Fn) {
   if (!Fn.getBlockStmt())
     return nullptr;
+
   auto BB = BasicBlock::Create(Context, "entry", Fn.getIRValue());
   Builder.SetInsertPoint(BB);
   CurrentFn = &Fn;
-
-  if (Fn.getBlockStmt()) {
-    auto IRType = inferFunctionType(Fn, M, CurrentScope)->toIR(M);
-    auto NorthType =
-        Module->getType(Fn.getTypeDecl()->getIdentifier())->toIR(M);
-    if (IRType != NorthType)
-      Diagnostic(Module->getModuleIdentifier())
-          .semanticError("return value type of `" + Fn.getIdentifier() +
-                         "` does't match the function type");
-  }
 
   return Fn.getBlockStmt()->accept(*this);
 }

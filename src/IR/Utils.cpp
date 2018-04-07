@@ -21,9 +21,10 @@ type::Type *IRBuilder::getTypeFromIdent(ast::Node *Ident) {
   if (auto Literal = dyn_cast<ast::LiteralExpr>(Ident)) {
     if (auto Type = Module->getTypeOrNull(Literal->getTokenInfo().toString()))
       return Type;
+    Diagnostic(Module->getModuleIdentifier()).semanticError("unknown symbol");
   }
 
-  Diagnostic(Module->getModuleIdentifier()).semanticError("unknown symbol");
+  llvm_unreachable("getTypeFromIdent() argument must be a literal");
   return nullptr;
 }
 

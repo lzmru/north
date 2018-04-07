@@ -80,7 +80,8 @@ llvm::Value *InferenceVisitor::visit(ast::LiteralExpr &Literal) {
   if (auto Type = Mod->getTypeOrNull(L.toString()))
     return new TypedValue(Type->toIR(Mod));
 
-  Diagnostic(Mod->getModuleIdentifier()).semanticError("unknown symbol");
+  Diagnostic(Mod->getModuleIdentifier())
+      .semanticError("unknown symbol `" + L.toString() + "`");
   return nullptr;
 }
 
@@ -102,7 +103,7 @@ llvm::Value *InferenceVisitor::visit(ast::QualifiedIdentifierExpr &Ident) {
     return new TypedValue(Var->getIRType());
   if (auto Type = Mod->getTypeOrNull(I))
     return new TypedValue(Type->toIR(Mod));
-  
+
   return nullptr;
 }
 
@@ -136,16 +137,20 @@ llvm::Value *InferenceVisitor::visit(ast::ReturnStmt &Return) {
 
 Type *inferFunctionType(ast::FunctionDecl &Fn, Module *Mod,
                         Scope *CurrentScope) {
-  llvm::Value *Val = nullptr;
+  llvm::Value *Type = nullptr;
   auto Visitor = detail::InferenceVisitor(Mod, CurrentScope);
   auto Body = Fn.getBlockStmt()->getBody();
 
   for (auto I = Body->begin(), E = Body->end(); I != E; ++I) {
     if (auto Return = llvm::dyn_cast<ast::ReturnStmt>(I))
-      Val = I->accept(Visitor);
+      Type = I->accept(Visitor);
   }
 
-  return Mod->getType(static_cast<detail::NamedValue *>(Val)->Name);
+  if (Type->getValueID() == 0)
+    return Mod->getType(static_cast<detail::NamedValue *>(Type)->Name);
+  else
+    return new type::Type(
+        static_cast<detail::TypedValue *>(Type)->Type); // FIXME
 }
 
 Type *inferVarType(ast::VarDecl &Var, Module *Mod, Scope *CurrentScope) {
