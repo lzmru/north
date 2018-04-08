@@ -24,6 +24,7 @@
 #include <llvm/Transforms/IPO/FunctionImport.h>
 
 #include <AST/Dumper.h>
+#include <llvm/ADT/SmallVector.h>
 #include <llvm/ADT/Twine.h>
 #include <llvm/Support/FormatVariadic.h>
 #include <llvm/Support/raw_ostream.h>
@@ -191,9 +192,15 @@ llvm::Value *IRBuilder::visit(ast::ArrayIndexExpr &Idx) {
   auto Ty = Idx.getIdentifier()->accept(*this);
   auto Index = Idx.getIdxExpr()->accept(*this);
 
-  Value *GEP = Builder.CreateInBoundsGEP(Ty, {Index});
+  SmallVector<Value *, 2> Indices{Index};
+  if (!Ty->getType()->getPointerElementType()->isPointerTy())
+    Indices.insert(Indices.begin(),
+                   ConstantInt::get(IntegerType::getInt32Ty(Context), 0));
+
+  Value *GEP = Builder.CreateInBoundsGEP(Ty, Indices);
   while (GEP->getType()->isPointerTy())
     GEP = Builder.CreateLoad(GEP);
+
   return GEP;
 }
 

@@ -117,7 +117,6 @@ int main(int argc, const char *argv[]) {
 
     legacy::PassManager PM;
     PassManagerBuilder PMB;
-    legacy::FunctionPassManager FPM(Module);
 
     unsigned Opt = 3, Size = 0;
     PMB.OptLevel = Opt;
@@ -128,21 +127,54 @@ int main(int argc, const char *argv[]) {
     PMB.LoopVectorize = true;
     PMB.SLPVectorize = true;
 
-    FPM.add(createPromoteMemoryToRegisterPass());
-    FPM.add(createInstructionCombiningPass());
-    FPM.add(createReassociatePass());
-    FPM.add(createGVNPass());
-    FPM.add(createCFGSimplificationPass());
 
-    FPM.doInitialization();
+    /// https://github.com/klee/klee/blob/master/lib/Module/Optimize.cpp
+    PM.add(createCFGSimplificationPass());       // Clean up disgusting code
+    PM.add(createPromoteMemoryToRegisterPass()); // Kill useless allocas
+    PM.add(createGlobalOptimizerPass());         // Optimize out global vars
+    PM.add(createGlobalDCEPass());               // Remove unused fns and globs
+    PM.add(createIPConstantPropagationPass());   // IP Constant Propagation
+    PM.add(createDeadArgEliminationPass());      // Dead argument elimination
+    PM.add(createInstructionCombiningPass());    // Clean up after IPCP & DAE
+    PM.add(createCFGSimplificationPass());       // Clean up after IPCP & DAE
 
-    for (auto &F : Module->getFunctionList())
-      FPM.run(F);
+    PM.add(createFunctionInliningPass());  // Inline small functions
+    PM.add(createArgumentPromotionPass()); // Scalarize uninlined fn args
+
+    PM.add(createInstructionCombiningPass()); // Cleanup for scalarrepl.
+    PM.add(createJumpThreadingPass());        // Thread jumps.
+    PM.add(createCFGSimplificationPass());    // Merge & remove BBs
+    PM.add(createInstructionCombiningPass()); // Combine silly seq's
+
+    PM.add(createTailCallEliminationPass()); // Eliminate tail calls
+    PM.add(createCFGSimplificationPass());   // Merge & remove BBs
+    PM.add(createReassociatePass());         // Reassociate expressions
+    PM.add(createLoopRotatePass());
+    PM.add(createLICMPass());         // Hoist loop invariants
+    PM.add(createLoopUnswitchPass()); // Unswitch loops.
+
+    PM.add(createInstructionCombiningPass());
+    PM.add(createIndVarSimplifyPass());       // Canonicalize indvars
+    PM.add(createLoopDeletionPass());         // Delete dead loops
+    PM.add(createLoopUnrollPass());           // Unroll small loops
+    PM.add(createInstructionCombiningPass()); // Clean up after the unroller
+    PM.add(createGVNPass());                  // Remove redundancies
+    PM.add(createMemCpyOptPass());            // Remove memcpy / form memset
+    PM.add(createSCCPPass());                 // Constant prop with SCCP
+
+    // Run instcombine after redundancy elimination to exploit opportunities
+    // opened up by them.
+    PM.add(createInstructionCombiningPass());
+
+    PM.add(createDeadStoreEliminationPass()); // Delete dead stores
+    PM.add(createAggressiveDCEPass());        // Delete dead instructions
+    PM.add(createCFGSimplificationPass());    // Merge & remove BBs
+    PM.add(createStripDeadPrototypesPass());  // Get rid of dead prototypes
+    PM.add(createConstantMergePass());        // Merge dup global constants
 
     TM->adjustPassManager(PMB);
 
     PMB.populateModulePassManager(PM);
-    PMB.populateFunctionPassManager(FPM);
 
     auto FileType = TargetMachine::CGFT_ObjectFile;
 
@@ -152,6 +184,7 @@ int main(int argc, const char *argv[]) {
     }
 
     PM.run(*Module);
+
     dest.flush();
 
     system(("gcc " + Filename + " -o " +
