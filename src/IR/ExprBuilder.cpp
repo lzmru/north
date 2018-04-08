@@ -187,10 +187,14 @@ Value *IRBuilder::visit(ast::CallExpr &Callee) {
 }
 
 llvm::Value *IRBuilder::visit(ast::ArrayIndexExpr &Idx) {
+  GetVal = false;
   auto Ty = Idx.getIdentifier()->accept(*this);
   auto Index = Idx.getIdxExpr()->accept(*this);
 
-  return Builder.CreateLoad(Builder.CreateInBoundsGEP(Ty, {Index}));
+  Value *GEP = Builder.CreateInBoundsGEP(Ty, {Index});
+  while (GEP->getType()->isPointerTy())
+    GEP = Builder.CreateLoad(GEP);
+  return GEP;
 }
 
 llvm::Value *IRBuilder::visit(ast::QualifiedIdentifierExpr &Ident) {
