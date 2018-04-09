@@ -283,14 +283,26 @@ Value *IRBuilder::visit(ast::IfExpr &If) {
 }
 
 Value *IRBuilder::visit(ast::ForExpr &For) {
-  auto Range = static_cast<ast::RangeExpr *>(For.getRange());
   auto Iter = static_cast<ast::LiteralExpr *>(For.getIter());
 
-  auto StartVal = Range->getBeginValue()->accept(*this);
-  auto EndVal = Range->getEndValue()->accept(*this);
+  Value *StartVal = nullptr;
+  Value *EndVal = nullptr;
 
-  if (!StartVal || !EndVal)
+  if (auto Literal = dyn_cast<ast::LiteralExpr>(For.getRange())) {
+    if (auto Ptr = dyn_cast<PointerType>(Literal->accept(*this)->getType()))
+      if (auto Array = dyn_cast<ArrayType>(Ptr->getPointerElementType())) {
+        StartVal = ConstantInt::get(Type::getInt32Ty(Context), 0);
+        EndVal = ConstantInt::get(Type::getInt32Ty(Context),
+                                  Array->getNumElements());
+      }
+  } else if (auto Range = dyn_cast<ast::RangeExpr>(For.getRange())) {
+    StartVal = Range->getBeginValue()->accept(*this);
+    EndVal = Range->getEndValue()->accept(*this);
+  }
+
+  if (!StartVal || !EndVal) {
     Diagnostic(Module->getModuleIdentifier()).semanticError("invalid range");
+  }
 
   auto Fn = Builder.GetInsertBlock()->getParent();
   auto PreheaderBB = Builder.GetInsertBlock();

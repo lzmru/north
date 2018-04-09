@@ -591,10 +591,16 @@ ast::ForExpr *Parser::parseForExpr() {
     Loop->setIter(new ast::LiteralExpr(Buf[0]));
     expect(Token::In);
 
-    if (tryParseLiteral())
-      Loop->setRange(parseRangeExpr());
-    else
+    if (tryParseLiteral()) {
+      if (peekToken() == Token::DotDot)
+        Loop->setRange(parseRangeExpr());
+      else if (Buf[0].Type == Token::Identifier)
+        Loop->setRange(new ast::LiteralExpr(Buf[0]));
+      else
+        goto __error;
+    } else {
       goto __error;
+    }
 
     nextToken();
     Loop->setBlock(parseBlockStmt());

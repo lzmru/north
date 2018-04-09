@@ -127,7 +127,6 @@ int main(int argc, const char *argv[]) {
     PMB.LoopVectorize = true;
     PMB.SLPVectorize = true;
 
-
     /// https://github.com/klee/klee/blob/master/lib/Module/Optimize.cpp
     PM.add(createCFGSimplificationPass());       // Clean up disgusting code
     PM.add(createPromoteMemoryToRegisterPass()); // Kill useless allocas
