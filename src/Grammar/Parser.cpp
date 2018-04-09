@@ -652,6 +652,8 @@ ast::RangeExpr *Parser::parseRangeExpr() {
 ast::ArrayExpr *Parser::parseArrayExpr() {
   auto Array = new ast::ArrayExpr(Buf[0]);
 
+  Lex.turnFlag(Lexer::IndentationSensitive, false);
+
   while (auto Val = parseExpression()) {
     Array->addValue(Val);
     if (!match(Token::Comma))
@@ -661,6 +663,8 @@ ast::ArrayExpr *Parser::parseArrayExpr() {
 
   if (!Array->getCap())
     Diagnostic(Filename).semanticError("empty array");
+
+  Lex.turnFlag(Lexer::IndentationSensitive, true);
 
   return Array;
 }

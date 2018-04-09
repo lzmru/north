@@ -192,6 +192,11 @@ llvm::Value *IRBuilder::visit(ast::ArrayIndexExpr &Idx) {
   auto Ty = Idx.getIdentifier()->accept(*this);
   auto Index = Idx.getIdxExpr()->accept(*this);
 
+  if (auto Store = dyn_cast<StoreInst>(Index))
+    Index = Store->getOperand(1);
+  if (Index->getType()->isPointerTy())
+    Index = Builder.CreateLoad(Index);
+
   SmallVector<Value *, 2> Indices{Index};
   if (!Ty->getType()->getPointerElementType()->isPointerTy())
     Indices.insert(Indices.begin(),
@@ -289,7 +294,7 @@ Value *IRBuilder::visit(ast::ForExpr &For) {
 
   auto Fn = Builder.GetInsertBlock()->getParent();
   auto PreheaderBB = Builder.GetInsertBlock();
-  auto LoopBB = BasicBlock::Create(Context, "loop", Fn);
+  auto LoopBB = BasicBlock::Create(Context, "for_loop", Fn);
 
   Builder.CreateBr(LoopBB);
   Builder.SetInsertPoint(LoopBB);
@@ -317,7 +322,35 @@ Value *IRBuilder::visit(ast::ForExpr &For) {
   return Constant::getNullValue(Type::getInt32Ty(Context));
 }
 
-Value *IRBuilder::visit(ast::WhileExpr &While) { return nullptr; }
+Value *IRBuilder::visit(ast::WhileExpr &While) {
+  auto Cond = While.getExpr()->accept(*this);
+
+  if (!Cond)
+    Diagnostic(Module->getModuleIdentifier())
+        .semanticError("invalid while expression");
+
+  auto Fn = Builder.GetInsertBlock()->getParent();
+  auto PreheaderBB = Builder.GetInsertBlock();
+  auto LoopBB = BasicBlock::Create(Context, "while_loop", Fn);
+
+  Builder.CreateBr(LoopBB);
+  Builder.SetInsertPoint(LoopBB);
+
+  auto IRVar = Builder.CreatePHI(Cond->getType(), 2, "phi");
+  IRVar->addIncoming(Cond, PreheaderBB);
+
+  While.getBlock()->accept(*this);
+
+  BasicBlock *LoopEndBB = Builder.GetInsertBlock();
+  BasicBlock *AfterBB = BasicBlock::Create(Context, "afterloop", Fn);
+
+  Builder.CreateCondBr(While.getExpr()->accept(*this), LoopBB, AfterBB);
+  Builder.SetInsertPoint(AfterBB);
+
+  IRVar->addIncoming(Cond, LoopEndBB);
+
+  return Constant::getNullValue(Type::getInt32Ty(Context));
+}
 
 #define ASSIGN(FN)                                                             \
   Builder.CreateStore(Builder.Create##FN(Builder.CreateLoad(LHS),              \
@@ -327,6 +360,7 @@ Value *IRBuilder::visit(ast::WhileExpr &While) { return nullptr; }
                       LHS);
 
 Value *IRBuilder::visit(ast::AssignExpr &Assign) {
+  GetVal = false;
   auto LHS = Assign.getLHS()->accept(*this),
        RHS = Assign.getRHS()->accept(*this);
 
