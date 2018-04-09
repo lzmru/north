@@ -97,6 +97,7 @@ static const Precedence PrecedenceTable[] = {
     None, // String,
 
     None, // Def,
+    None, // Nil
     None, // Open,
     None, // Interface,
     None, // Type,
@@ -444,6 +445,7 @@ ast::Node *Parser::parsePrefix() {
   case Token::Char:
   case Token::Int:
   case Token::String:
+  case Token::Nil:
     return new ast::LiteralExpr(Buf[0]);
 
   case Token::If:

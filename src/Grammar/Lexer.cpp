@@ -33,16 +33,15 @@ struct Keyword {
   Token KwToken;
 };
 
-#define KW_COUNT 13
+#define KW_COUNT 14
 const Keyword Keywords[KW_COUNT] = {
     {"def", 3, Token::Def},       {"else", 4, Token::Else},
     {"for", 3, Token::For},       {"if", 2, Token::If},
     {"in", 2, Token::In},         {"interface", 9, Token::Interface},
-    {"let", 3, Token::Let},       {"open", 4, Token::Open},
-    {"return", 6, Token::Return}, {"switch", 6, Token::Switch},
-    {"type", 4, Token::Type},     {"var", 3, Token::Var},
-    {"while", 5, Token::While},
-};
+    {"let", 3, Token::Let},       {"nil", 3, Token::Nil},
+    {"open", 4, Token::Open},     {"return", 6, Token::Return},
+    {"switch", 6, Token::Switch}, {"type", 4, Token::Type},
+    {"var", 3, Token::Var},       {"while", 5, Token::While}};
 
 } // namespace
 

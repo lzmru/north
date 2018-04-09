@@ -137,6 +137,9 @@ Value *IRBuilder::visit(ast::LiteralExpr &Literal) {
   auto Token = Literal.getTokenInfo();
 
   switch (Token.Type) {
+  case Token::Nil:
+    return Constant::getNullValue(Type::getInt32Ty(Context));
+
   case Token::Char:
     return ConstantInt::get(IntegerType::getInt8Ty(Context),
                             static_cast<uint64_t>(Token.toString().front()));

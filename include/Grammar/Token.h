@@ -27,6 +27,7 @@ enum class Token {
   String,
 
   Def,
+  Nil,
   Open,
   Interface,
   Type,

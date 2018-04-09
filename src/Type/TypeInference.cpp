@@ -71,6 +71,8 @@ llvm::Value *InferenceVisitor::visit(ast::LiteralExpr &Literal) {
     return new NamedValue("int");
   case Token::String:
     return new NamedValue("string");
+  case Token::Nil:
+    return new TypedValue(Type::Int32->toIR(Mod));
   default:
     break;
   }
