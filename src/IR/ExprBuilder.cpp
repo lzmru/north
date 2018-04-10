@@ -38,8 +38,8 @@ using namespace llvm;
 Value *IRBuilder::visit(ast::UnaryExpr &Unary) {
   auto Expr = Unary.getOperand()->accept(*this);
   if (!Expr)
-    Diagnostic(Module->getModuleIdentifier())
-        .semanticError("invalid expression");
+    Diagnostic(Module->getSourceFileName())
+        .semanticError(Unary.getPosition(), "invalid expression");
 
   switch (Unary.getOperator()) {
   case Token::Mult:
@@ -76,8 +76,8 @@ Value *IRBuilder::visit(ast::BinaryExpr &Expr) {
   auto RHS = Expr.getRHS()->accept(*this);
 
   if (!LHS || !RHS)
-    Diagnostic(Module->getModuleIdentifier())
-        .semanticError("invalid expression");
+    Diagnostic(Module->getSourceFileName())
+        .semanticError(Expr.getPosition(), "invalid expression");
 
   switch (Expr.getOperator()) {
   case Token::Mult:
@@ -151,11 +151,13 @@ Value *IRBuilder::visit(ast::LiteralExpr &Literal) {
 
   case Token::Identifier:
     if (auto Var = CurrentScope->lookup(Token.toString()))
-      return GetVal && !Var->isArg() ? Builder.CreateLoad(Var->getIRValue())
-                                     : Var->getIRValue();
+      return GetVal && !Var->isArg() && !isa<StructType>(Var->getIRType().)
+                 ? Builder.CreateLoad(Var->getIRValue())
+                 : Var->getIRValue();
 
-    Diagnostic(Module->getModuleIdentifier())
-        .semanticError("unknown symbol `" + Token.toString() + "`");
+    Diagnostic(Module->getSourceFileName())
+        .semanticError(Literal.getPosition(),
+                       "unknown symbol `" + Token.toString() + "`");
 
   default:
     return nullptr;
@@ -165,15 +167,17 @@ Value *IRBuilder::visit(ast::LiteralExpr &Literal) {
 Value *IRBuilder::visit(ast::RangeExpr &) { return nullptr; }
 
 Value *IRBuilder::visit(ast::CallExpr &Callee) {
-  auto Fn = Module->getFunction(Callee.getIdentifier());
+  auto Fn = Module->getFn(Callee, CurrentScope);
+
   if (!Fn)
-    Diagnostic(Module->getModuleIdentifier())
-        .semanticError("unknown function referenced");
+    Diagnostic(Module->getSourceFileName())
+        .semanticError(Callee.getPosition(), "unknown function referenced");
 
   if (Callee.numberOfArgs() != Fn->arg_size() && !Fn->isVarArg())
-    Diagnostic(Module->getModuleIdentifier())
-        .semanticError(formatv("expected {0} arguments, not {1}",
-                               Callee.numberOfArgs(), Fn->arg_size()));
+    Diagnostic(Module->getSourceFileName())
+        .semanticError(Callee.getPosition(),
+                       formatv("expected {0} arg, not {1}", Fn->arg_size(),
+                               Callee.numberOfArgs()));
 
   std::vector<Value *> Args;
   if (Callee.hasArgs()) {
@@ -216,7 +220,8 @@ llvm::Value *IRBuilder::visit(ast::QualifiedIdentifierExpr &Ident) {
   auto FirstPart = Ident.getPart(0);
 
   if (auto Var = CurrentScope->lookup(FirstPart))
-    return getStructField(Var->getValue(), Var->getIRValue(), Ident);
+    return getStructField(Var->getValue() ? Var->getValue() : Var,
+                          Var->getIRValue(), Ident);
 
   if (auto Type = Module->getTypeOrNull(FirstPart)) {
     auto T = static_cast<ast::TypeDef *>(Type->getDecl())->getTypeDecl();
@@ -234,8 +239,8 @@ Value *IRBuilder::visit(ast::IfExpr &If) {
   GetVal = false;
 
   if (!Cond)
-    Diagnostic(Module->getModuleIdentifier())
-        .semanticError("empty if condition");
+    Diagnostic(Module->getSourceFileName())
+        .semanticError(If.getPosition(), "empty if condition");
 
   Cond = cmpWithTrue(Cond);
 
@@ -249,7 +254,8 @@ Value *IRBuilder::visit(ast::IfExpr &If) {
   Builder.SetInsertPoint(ThenBB);
 
   if (!If.getBlock())
-    Diagnostic(Module->getModuleIdentifier()).semanticError("empty if block");
+    Diagnostic(Module->getSourceFileName())
+        .semanticError(If.getPosition(), "empty if block");
   auto Then = If.getBlock()->accept(*this);
 
   Builder.CreateBr(MergeBB);
@@ -266,8 +272,8 @@ Value *IRBuilder::visit(ast::IfExpr &If) {
     if (auto ElseBlock = ElseBranch->getBlock())
       ElseBlock->accept(*this);
     else
-      Diagnostic(Module->getModuleIdentifier())
-          .semanticError("empty else block");
+      Diagnostic(Module->getSourceFileName())
+          .semanticError(If.getPosition(), "empty else block");
 
     Builder.CreateBr(MergeBB);
     ElseBB = Builder.GetInsertBlock();
@@ -304,7 +310,8 @@ Value *IRBuilder::visit(ast::ForExpr &For) {
   }
 
   if (!StartVal || !EndVal) {
-    Diagnostic(Module->getModuleIdentifier()).semanticError("invalid range");
+    Diagnostic(Module->getSourceFileName())
+        .semanticError(For.getPosition(), "invalid range");
   }
 
   auto Fn = Builder.GetInsertBlock()->getParent();
@@ -341,8 +348,8 @@ Value *IRBuilder::visit(ast::WhileExpr &While) {
   auto Cond = While.getExpr()->accept(*this);
 
   if (!Cond)
-    Diagnostic(Module->getModuleIdentifier())
-        .semanticError("invalid while expression");
+    Diagnostic(Module->getSourceFileName())
+        .semanticError(While.getPosition(), "invalid while expression");
 
   auto Fn = Builder.GetInsertBlock()->getParent();
   auto PreheaderBB = Builder.GetInsertBlock();
@@ -380,8 +387,8 @@ Value *IRBuilder::visit(ast::AssignExpr &Assign) {
        RHS = Assign.getRHS()->accept(*this);
 
   if (!LHS || !RHS)
-    Diagnostic(Module->getModuleIdentifier())
-        .semanticError("invalid assign expression");
+    Diagnostic(Module->getSourceFileName())
+        .semanticError(Assign.getPosition(), "invalid assign expression");
 
   switch (Assign.getOperator()) {
   case Token::Assign:
@@ -444,8 +451,9 @@ Value *IRBuilder::visit(ast::ArrayExpr &Array) {
     auto Elem = I->accept(*this);
     if (Elem->getType() != FirstElemTy &&
         !CastInst::isCastable(Elem->getType(), FirstElemTy))
-      Diagnostic(Module->getModuleIdentifier())
-          .semanticError("array elements can't has different types");
+      Diagnostic(Module->getSourceFileName())
+          .semanticError(Array.getPosition(),
+                         "array elements can't has different types");
 
     Values.push_back(static_cast<Constant *>(Elem));
   }

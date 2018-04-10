@@ -55,13 +55,16 @@ Value *IRBuilder::visit(ast::BlockStmt &Block) {
       Result = I->accept(*this);
   }
 
-  auto IRType = type::inferFunctionType(*CurrentFn, M, CurrentScope)->toIR(M);
-  auto NorthType =
-      Module->getType(CurrentFn->getTypeDecl()->getIdentifier())->toIR(M);
-  if (IRType != NorthType)
-    Diagnostic(Module->getModuleIdentifier())
-        .semanticError("return value type of `" + CurrentFn->getIdentifier() +
-                       "` does't match the function type");
+  if (auto TD = CurrentFn->getTypeDecl()) {
+    auto IRType = type::inferFunctionType(*CurrentFn, M, CurrentScope)->toIR(M);
+    auto NorthType = Module->getType(TD->getIdentifier())->toIR(M);
+    if (IRType != NorthType)
+      Diagnostic(Module->getModuleIdentifier())
+          .semanticError("return value type of `" + CurrentFn->getIdentifier() +
+                         "` does't match the function type");
+  } else {
+    Builder.CreateRetVoid();
+  }
 
   CurrentScope = Scope.getParent();
   return Result;

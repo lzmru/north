@@ -25,19 +25,19 @@ public:
   static unsigned getErrorNumber() { return ErrorCounter; }
   static unsigned getWarningNumber() { return WarningCounter; }
 
-  void expectedToken(Token Expected, const TokenInfo &Found);
-  void unexpectedChar(Position Found);
+  void expectedToken(Token, const TokenInfo &);
+  void unexpectedChar(Position);
 
-  void invalidTypeDecl(const TokenInfo &TkInfo);
-  void invalidTupleDecl(const TokenInfo &TkInfo);
-  void invalidUnionDecl(const TokenInfo &TkInfo);
+  void invalidTypeDecl(const TokenInfo &);
+  void invalidTupleDecl(const TokenInfo &);
+  void invalidUnionDecl(const TokenInfo &);
 
-  void invalidForExpr(const TokenInfo &TkInfo);
-  void invalidRangeExpr(const TokenInfo &TkInfo);
-  void invalidAssignExpr(const TokenInfo &TkInfo);
+  void invalidForExpr(const TokenInfo &);
+  void invalidRangeExpr(const TokenInfo &);
+  void invalidAssignExpr(const TokenInfo &);
 
-  Diagnostic &semanticError(llvm::Twine Message);
-  Diagnostic &semanticError(const Position &TkInfo, llvm::Twine Message);
+  Diagnostic &semanticError(llvm::Twine);
+  Diagnostic &semanticError(const Position &, llvm::Twine);
 
   Diagnostic &hint(llvm::Twine Hint);
 };

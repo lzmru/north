@@ -10,7 +10,9 @@
 #include "Type/Module.h"
 #include "Diagnostic.h"
 #include "IR/IRBuilder.h"
+#include "Type/Scope.h"
 #include "Type/Type.h"
+#include <AST/Dumper.h>
 #include <llvm/Support/Path.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Transforms/IPO/FunctionImport.h>
@@ -62,6 +64,33 @@ Module::InterfaceDecl *Module::getInterface(llvm::StringRef Name) const {
   Diagnostic(getSourceFileName())
       .semanticError("The interface '" + Name + "' is undefined");
   return nullptr;
+}
+
+llvm::Function *Module::getFn(ast::CallExpr &Callee, Scope *S) {
+  auto Ident = Callee.getIdentifier();
+
+  if (Ident->getSize() == 1) {
+    return llvm::Module::getFunction(Ident->getPart(0));
+  } else {
+    if (auto Var = S->lookup(Ident->getPart(0))) {
+      for (auto &Fn : llvm::Module::getFunctionList()) {
+        if (!Fn.arg_size())
+          break;
+        auto ArgTy = Fn.arg_begin()->getType();
+        if (ArgTy->isPointerTy())
+          ArgTy = ArgTy->getPointerElementType();
+
+        if (ArgTy == Var->getIRType() && Fn.getName() == Ident->getPart(1)) {
+          Callee.insertArgument(new ast::LiteralExpr(
+              TokenInfo{Var->getPosition(), Token::Identifier}));
+          Ident->removeFirst();
+
+          return &Fn;
+        }
+      }
+    }
+    return nullptr;
+  }
 }
 
 void Module::addType(north::ast::GenericDecl *TypeDecl) {

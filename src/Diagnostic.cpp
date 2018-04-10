@@ -68,7 +68,7 @@ void printPath(StringRef Filename) {
 void printErrorMsg(Twine Msg) {
   outs().changeColor(raw_ostream::RED, true) << "error: ";
   outs().resetColor().changeColor(raw_ostream::SAVEDCOLOR, true);
-  outs() << Msg;
+  outs() << Msg << '\n';
 }
 
 void printWarningMsg(Twine Msg) {
@@ -184,12 +184,13 @@ Diagnostic &Diagnostic::semanticError(llvm::Twine Message) {
   return *this;
 }
 
-Diagnostic &Diagnostic::semanticError(const Position &TkInfo,
+Diagnostic &Diagnostic::semanticError(const Position &Pos,
                                       llvm::Twine Message) {
   ++ErrorCounter;
 
-  printPath(Filename, TkInfo);
   printErrorMsg(Message);
+  printPath(Filename, Pos);
+  renderHighlightedDiagnostic(Pos);
 
   return *this;
 }

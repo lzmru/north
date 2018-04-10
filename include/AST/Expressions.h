@@ -77,31 +77,6 @@ public:
   AST_NODE(RangeExpr)
 };
 
-class CallExpr : public Node {
-  std::vector<Node *> Args;
-  llvm::StringRef Ident;
-  llvm::Value *IRValue;
-
-public:
-  explicit CallExpr(Node *Identifier)
-      : Node(Identifier->getPosition(), AST_CallExpr),
-        Ident(Identifier->getPosition().Offset,
-              Identifier->getPosition().Length) {}
-
-  bool hasArgs() { return !Args.empty(); }
-  size_t numberOfArgs() { return Args.size(); }
-  llvm::ArrayRef<Node *> getArgumentList() const { return Args; }
-  void addArgument(Node *Argument) { Args.push_back(Argument); }
-
-  void setIdentifier(llvm::StringRef NewIdent) { Ident = NewIdent; }
-  llvm::StringRef getIdentifier() { return Ident; }
-
-  llvm::Value *getIR() { return IRValue; }
-  void setIR(llvm::Value *Val) { IRValue = Val; }
-
-  AST_NODE(CallExpr)
-};
-
 class ArrayIndexExpr : public Node {
   Node *Ident;
   Node *IdxExpr;
@@ -130,10 +105,35 @@ public:
 
   llvm::ArrayRef<TokenInfo> getIdentifier() { return Ident; }
   llvm::StringRef getPart(uint8_t I) { return Ident[I].toString(); }
+  void removeFirst() { Ident.erase(Ident.begin()); }
   unsigned getSize() { return Ident.size(); }
   void AddPart(const TokenInfo &TkInfo) { Ident.push_back(TkInfo); }
 
   AST_NODE(QualifiedIdentifierExpr)
+};
+
+class CallExpr : public Node {
+  std::vector<Node *> Args;
+  QualifiedIdentifierExpr *Ident;
+  llvm::Value *IRValue;
+
+public:
+  explicit CallExpr(QualifiedIdentifierExpr *Identifier)
+      : Node(Identifier->getPosition(), AST_CallExpr), Ident(Identifier) {}
+
+  bool hasArgs() { return !Args.empty(); }
+  size_t numberOfArgs() { return Args.size(); }
+  llvm::ArrayRef<Node *> getArgumentList() const { return Args; }
+  void addArgument(Node *Argument) { Args.push_back(Argument); }
+  void insertArgument(Node *Argument) { Args.insert(Args.begin(), Argument); }
+
+  void setIdentifier(QualifiedIdentifierExpr *NewIdent) { Ident = NewIdent; }
+  QualifiedIdentifierExpr *getIdentifier() { return Ident; }
+
+  llvm::Value *getIR() { return IRValue; }
+  void setIR(llvm::Value *Val) { IRValue = Val; }
+
+  AST_NODE(CallExpr)
 };
 
 class IfExpr : public Node {

@@ -46,6 +46,7 @@ public:
   Type *getType(llvm::StringRef Name) const;
   Type *getTypeOrNull(llvm::StringRef Name) const;
   InterfaceDecl *getInterface(llvm::StringRef Name) const;
+  llvm::Function *getFn(ast::CallExpr &, Scope *);
 
   void addType(north::ast::GenericDecl *);
   void addInterface(north::ast::InterfaceDecl *);

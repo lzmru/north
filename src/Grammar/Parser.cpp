@@ -544,7 +544,16 @@ ast::StructInitExpr *Parser::parseStructInitExpr(ast::Node *Ident) {
 
 /// callExpr = IDENTIFIER '(' expr { ',' expr } ')';
 ast::CallExpr *Parser::parseCallExpr(ast::Node *Ident) {
-  auto Callee = new ast::CallExpr(Ident);
+  ast::CallExpr *Callee = nullptr;
+
+  if (auto I = llvm::dyn_cast<ast::QualifiedIdentifierExpr>(Ident))
+    Callee = new ast::CallExpr(I);
+  else if (auto L = llvm::dyn_cast<ast::LiteralExpr>(Ident))
+    Callee =
+        new ast::CallExpr(new ast::QualifiedIdentifierExpr(L->getTokenInfo()));
+  else
+    Diagnostic(Filename).semanticError(Ident->getPosition(),
+                                       "invalid call expr");
 
   if (peekToken() != Token::RParen) {
     while (true) {
@@ -566,7 +575,8 @@ ast::ArrayIndexExpr *Parser::parseArrayIndexExpr(ast::Node *Ident) {
   if (auto Expr = parseExpression())
     Idx->setIdxExpr(Expr);
   else
-    Diagnostic(Filename).semanticError("invalid array index");
+    Diagnostic(Filename).semanticError(Ident->getPosition(),
+                                       "invalid array index");
 
   expect(Token::RBracket);
   return Idx;

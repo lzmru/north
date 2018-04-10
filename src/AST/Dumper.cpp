@@ -327,7 +327,9 @@ Value *Dumper::visit(RangeExpr &Range) {
 Value *Dumper::visit(CallExpr &Callee) {
   NodePrinter Node("CallExpr", Callee);
 
-  Node.printField("Name") << Callee.getIdentifier() << ",\n";
+  Node.printField("Name");
+  Node.offOutIndent();
+  Callee.getIdentifier()->accept(*this);
 
   if (Callee.hasArgs())
     Node.printArgumentList(Callee);

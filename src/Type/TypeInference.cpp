@@ -90,7 +90,7 @@ llvm::Value *InferenceVisitor::visit(ast::LiteralExpr &Literal) {
 llvm::Value *InferenceVisitor::visit(ast::RangeExpr &) { return nullptr; }
 
 llvm::Value *InferenceVisitor::visit(ast::CallExpr &Callee) {
-  return new TypedValue(Mod->getFunction(Callee.getIdentifier())
+  return new TypedValue(Mod->getFn(Callee, CurrentScope)
                             ->getFunctionType()
                             ->getReturnType());
 }
