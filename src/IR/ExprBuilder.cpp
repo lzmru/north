@@ -43,7 +43,7 @@ Value *IRBuilder::visit(ast::UnaryExpr &Unary) {
 
   switch (Unary.getOperator()) {
   case Token::Mult:
-    return GetVal ? Expr : Builder.CreateLoad(Expr);
+    return Builder.CreateLoad(Expr);
 
   case Token::Not:
     return Builder.CreateNot(Expr);
@@ -70,6 +70,8 @@ Value *IRBuilder::visit(ast::UnaryExpr &Unary) {
   }
 }
 
+#define BINARY(FN) return Builder.Create##FN(LHS, RHS);
+
 Value *IRBuilder::visit(ast::BinaryExpr &Expr) {
   GetVal = true;
   auto LHS = Expr.getLHS()->accept(*this);
@@ -81,46 +83,48 @@ Value *IRBuilder::visit(ast::BinaryExpr &Expr) {
 
   switch (Expr.getOperator()) {
   case Token::Mult:
-    return Builder.CreateMul(LHS, RHS);
+    BINARY(Mul);
 
   case Token::Div:
-    return Builder.CreateSDiv(LHS, RHS);
+    BINARY(SDiv);
 
   case Token::Plus:
-    return Builder.CreateAdd(LHS, RHS);
+    if (LHS->getType()->isPointerTy())
+      return Builder.CreateGEP(LHS, {RHS});
+    BINARY(Add);
 
   case Token::Minus:
-    return Builder.CreateSub(LHS, RHS);
+    BINARY(Sub);
 
   case Token::LShift:
-    return Builder.CreateShl(LHS, RHS);
+    BINARY(Shl);
 
   case Token::RShift:
-    return Builder.CreateLShr(LHS, RHS);
+    BINARY(LShr);
 
   case Token::And:
-    return Builder.CreateAnd(LHS, RHS);
+    BINARY(And);
 
   case Token::Or:
-    return Builder.CreateOr(LHS, RHS);
+    BINARY(Or);
 
   case Token::Eq:
-    return Builder.CreateICmpEQ(LHS, RHS);
+    BINARY(ICmpEQ);
 
   case Token::NotEq:
-    return Builder.CreateICmpNE(LHS, RHS);
+    BINARY(ICmpNE);
 
   case Token::LessThan:
-    return Builder.CreateICmpSLT(LHS, RHS);
+    BINARY(ICmpSLT);
 
   case Token::LessEq:
-    return Builder.CreateICmpSLE(LHS, RHS);
+    BINARY(ICmpSLE);
 
   case Token::GreaterThan:
-    return Builder.CreateICmpSGT(LHS, RHS);
+    BINARY(ICmpSGT);
 
   case Token::GreaterEq:
-    return Builder.CreateICmpSGE(LHS, RHS);
+    BINARY(ICmpSGE);
 
   case Token::OrOr:
     return Builder.CreateOr(cmpWithTrue(LHS), cmpWithTrue(RHS));
@@ -151,7 +155,9 @@ Value *IRBuilder::visit(ast::LiteralExpr &Literal) {
 
   case Token::Identifier:
     if (auto Var = CurrentScope->lookup(Token.toString()))
-      return GetVal && !Var->isArg() && !isa<StructType>(Var->getIRType().)
+      return GetVal && !Var->isArg() &&
+                     (LoadArg && !isa<StructType>(Var->getIRType()) &&
+                      !isa<ArrayType>(Var->getIRType()))
                  ? Builder.CreateLoad(Var->getIRValue())
                  : Var->getIRValue();
 
@@ -182,10 +188,21 @@ Value *IRBuilder::visit(ast::CallExpr &Callee) {
   std::vector<Value *> Args;
   if (Callee.hasArgs()) {
     Args.reserve(Callee.numberOfArgs() - 1);
+    LoadArg = true;
     for (auto &Arg : Callee.getArgumentList()) {
       GetVal = true;
-      Args.push_back(Arg->accept(*this));
+      auto Val = Arg->accept(*this);
+
+      if (Val->getType()->isPointerTy()) {
+        if (auto Arr =
+                dyn_cast<ArrayType>(Val->getType()->getPointerElementType()))
+          Val = Builder.CreateBitCast(Val,
+                                      Arr->getElementType()->getPointerTo(0));
+      }
+
+      Args.push_back(Val);
     }
+    LoadArg = false;
     GetVal = false;
   }
 
@@ -204,12 +221,7 @@ llvm::Value *IRBuilder::visit(ast::ArrayIndexExpr &Idx) {
   if (Index->getType()->isPointerTy())
     Index = Builder.CreateLoad(Index);
 
-  SmallVector<Value *, 2> Indices{Index};
-  if (!Ty->getType()->getPointerElementType()->isPointerTy())
-    Indices.insert(Indices.begin(),
-                   ConstantInt::get(IntegerType::getInt32Ty(Context), 0));
-
-  Value *GEP = Builder.CreateInBoundsGEP(Ty, Indices);
+  Value *GEP = Builder.CreateInBoundsGEP(Ty, {Index});
   while (GEP->getType()->isPointerTy())
     GEP = Builder.CreateLoad(GEP);
 

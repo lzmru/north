@@ -28,6 +28,7 @@ class IRBuilder : public ast::Visitor {
   ast::FunctionDecl *CurrentFn;
 
   bool GetVal = false;
+  bool LoadArg = false;
 
   static llvm::LLVMContext Context;
 

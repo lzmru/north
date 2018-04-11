@@ -10,7 +10,6 @@
 #include "Diagnostic.h"
 #include "IR/IRBuilder.h"
 #include "Type/Type.h"
-#include "ast/Dumper.h"
 #include <llvm/Support/raw_ostream.h>
 
 namespace north::ir {
