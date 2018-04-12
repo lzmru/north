@@ -76,11 +76,17 @@ llvm::Function *Module::getFn(ast::CallExpr &Callee, Scope *S) {
       for (auto &Fn : llvm::Module::getFunctionList()) {
         if (!Fn.arg_size())
           break;
+
         auto ArgTy = Fn.arg_begin()->getType();
-        if (ArgTy->isPointerTy())
+        if (ArgTy->isPointerTy() &&
+            ArgTy->getPointerElementType()->isStructTy())
           ArgTy = ArgTy->getPointerElementType();
 
-        if (ArgTy == Var->getIRType() && Fn.getName() == Ident->getPart(1)) {
+        auto T = Var->getIRType();
+        if (T->isArrayTy())
+          T = T->getArrayElementType()->getPointerTo(0);
+
+        if (ArgTy == T && Fn.getName() == Ident->getPart(1)) {
           Callee.insertArgument(new ast::LiteralExpr(
               TokenInfo{Var->getPosition(), Token::Identifier}));
           Ident->removeFirst();

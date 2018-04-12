@@ -54,10 +54,12 @@ Value *IRBuilder::visit(ast::VarDecl &Var) {
     if (TypeDecl->isPtr())
       Type = Type->getPointerTo(0);
 
-    if (inferVarType(Var, M, CurrentScope)->toIR(M) != Type)
+    auto InferredType = inferVarType(Var, M, CurrentScope)->toIR(M);
+    if (InferredType != Type) {
       Diagnostic(Module->getModuleIdentifier())
           .semanticError("type of value `" + Var.getIdentifier() +
                          "` type does't match the variable type");
+    }
   } else {
     Type = inferVarType(Var, M, CurrentScope)->toIR(M);
     Var.setIRType(Type);
