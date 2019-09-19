@@ -12,7 +12,7 @@
 
 #include "AST/AST.h"
 #include "Grammar/Lexer.h"
-#include "IR/IRBuilder.h"
+#include "Targets/IRBuilder.h"
 #include "Type/Module.h"
 
 namespace north {
@@ -40,7 +40,7 @@ class Parser {
 
 public:
   explicit Parser(const char *Filename)
-      : Parser(new type::Module(Filename, ir::IRBuilder::getContext()),
+      : Parser(new type::Module(Filename, targets::IRBuilder::getContext()),
                Filename) {}
 
   explicit Parser(type::Module *Module, const char *Filename)

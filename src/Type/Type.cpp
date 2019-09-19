@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "Type/Type.h"
-#include "IR/IRBuilder.h"
+#include "Targets/IRBuilder.h"
 
 #include <llvm/ADT/StringSwitch.h>
 #include <llvm/ADT/Twine.h>
@@ -20,13 +20,13 @@ namespace {
 
 template <bool IsPointer = false, typename T> Type *createPrimitive(T IRType) {
   if constexpr (IsPointer)
-    return new Type(IRType(ir::IRBuilder::getContext())->getPointerTo(0));
-  return new Type(IRType(ir::IRBuilder::getContext()));
+    return new Type(IRType(targets::IRBuilder::getContext())->getPointerTo(0));
+  return new Type(IRType(targets::IRBuilder::getContext()));
 }
 
 llvm::Type *createStructIR(ast::GenericDecl *Decl, Module *M) {
   auto Struct = static_cast<ast::TypeDef *>(Decl)->getTypeDecl();
-  auto IR = llvm::StructType::create(ir::IRBuilder::getContext(),
+  auto IR = llvm::StructType::create(targets::IRBuilder::getContext(),
                                      Decl->getIdentifier());
   static_cast<ast::StructDecl *>(Struct)->setIR(IR);
   return IR;

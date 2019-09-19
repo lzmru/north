@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "Diagnostic.h"
-#include "IR/IRBuilder.h"
+#include "Targets/IRBuilder.h"
 #include "Type/Type.h"
 #include "Type/TypeInference.h"
 
@@ -29,7 +29,7 @@
 
 #define M Module.get()
 
-namespace north::ir {
+namespace north::targets {
 
 using namespace llvm;
 
@@ -98,4 +98,4 @@ Value *IRBuilder::visit(ast::TypeDef &Type) {
   return Type.getTypeDecl()->accept(*this);
 }
 
-} // namespace north::ir
+} // namespace north::targets

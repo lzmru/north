@@ -10,20 +10,12 @@
 #ifndef NORTH_IR_BUILDER_H
 #define NORTH_IR_BUILDER_H
 
-#include "AST/Visitor.h"
-#include "Type/Module.h"
-#include "Type/Scope.h"
+#include "Targets/BuilderBase.h"
 
-#include <llvm/ADT/StringMap.h>
-#include <llvm/IR/IRBuilder.h>
-#include <llvm/IR/LLVMContext.h>
-#include <llvm/IR/Module.h>
+namespace north::targets {
 
-namespace north::ir {
-
-class IRBuilder : public ast::Visitor {
+class IRBuilder : public ast::Visitor, BuilderBase {
   llvm::IRBuilder<> Builder;
-  std::unique_ptr<north::type::Module> Module;
   type::Scope *CurrentScope;
   ast::FunctionDecl *CurrentFn;
 
@@ -34,11 +26,10 @@ class IRBuilder : public ast::Visitor {
 
 public:
   explicit IRBuilder(north::type::Module *Module)
-      : Builder(Context), Module(Module),
+      : Builder(Context), BuilderBase(Module),
         CurrentScope(Module->getGlobalScope()), CurrentFn(nullptr) {}
 
   static llvm::LLVMContext &getContext() { return Context; }
-  llvm::Module *getModule() { return Module.get(); }
 
   AST_WALKER_METHODS
 
@@ -49,6 +40,6 @@ private:
                               ast::QualifiedIdentifierExpr &);
 };
 
-} // namespace north::ir
+} // namespace north::targets
 
 #endif // NORTH_IR_BUILDER_H

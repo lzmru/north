@@ -9,7 +9,7 @@
 
 #include "AST/Dumper.h"
 #include "Grammar/Parser.h"
-#include "IR/IRBuilder.h"
+#include "Targets/IRBuilder.h"
 
 #include <llvm/Analysis/CallGraph.h>
 #include <llvm/Analysis/CallGraphSCCPass.h>
@@ -71,7 +71,7 @@ int main(int argc, const char *argv[]) {
     north::ast::Dumper Dumper;
     applyVisitor(Dumper, Module);
   } else {
-    north::ir::IRBuilder IR(Module);
+    north::targets::IRBuilder IR(Module);
     applyVisitor(IR, Module);
 
     verifyModule(*Module, &outs());
@@ -129,21 +129,21 @@ int main(int argc, const char *argv[]) {
 
     /// https://github.com/klee/klee/blob/master/lib/Module/Optimize.cpp
     PM.add(createCFGSimplificationPass());       // Clean up disgusting code
-    PM.add(createPromoteMemoryToRegisterPass()); // Kill useless allocas
+//    PM.add(createPromoteMemoryToRegisterPass()); // Kill useless allocas
     PM.add(createGlobalOptimizerPass());         // Optimize out global vars
     PM.add(createGlobalDCEPass());               // Remove unused fns and globs
     PM.add(createIPConstantPropagationPass());   // IP Constant Propagation
     PM.add(createDeadArgEliminationPass());      // Dead argument elimination
-    PM.add(createInstructionCombiningPass());    // Clean up after IPCP & DAE
+//    PM.add(createInstructionCombiningPass());    // Clean up after IPCP & DAE
     PM.add(createCFGSimplificationPass());       // Clean up after IPCP & DAE
 
     PM.add(createFunctionInliningPass());  // Inline small functions
     PM.add(createArgumentPromotionPass()); // Scalarize uninlined fn args
 
-    PM.add(createInstructionCombiningPass()); // Cleanup for scalarrepl.
+//    PM.add(createInstructionCombiningPass()); // Cleanup for scalarrepl.
     PM.add(createJumpThreadingPass());        // Thread jumps.
     PM.add(createCFGSimplificationPass());    // Merge & remove BBs
-    PM.add(createInstructionCombiningPass()); // Combine silly seq's
+//    PM.add(createInstructionCombiningPass()); // Combine silly seq's
 
     PM.add(createTailCallEliminationPass()); // Eliminate tail calls
     PM.add(createCFGSimplificationPass());   // Merge & remove BBs
@@ -152,18 +152,18 @@ int main(int argc, const char *argv[]) {
     PM.add(createLICMPass());         // Hoist loop invariants
     PM.add(createLoopUnswitchPass()); // Unswitch loops.
 
-    PM.add(createInstructionCombiningPass());
+//    PM.add(createInstructionCombiningPass());
     PM.add(createIndVarSimplifyPass());       // Canonicalize indvars
     PM.add(createLoopDeletionPass());         // Delete dead loops
     PM.add(createLoopUnrollPass());           // Unroll small loops
-    PM.add(createInstructionCombiningPass()); // Clean up after the unroller
+//    PM.add(createInstructionCombiningPass()); // Clean up after the unroller
     PM.add(createGVNPass());                  // Remove redundancies
     PM.add(createMemCpyOptPass());            // Remove memcpy / form memset
     PM.add(createSCCPPass());                 // Constant prop with SCCP
 
     // Run instcombine after redundancy elimination to exploit opportunities
     // opened up by them.
-    PM.add(createInstructionCombiningPass());
+//    PM.add(createInstructionCombiningPass());
 
     PM.add(createDeadStoreEliminationPass()); // Delete dead stores
     PM.add(createAggressiveDCEPass());        // Delete dead instructions
@@ -177,7 +177,21 @@ int main(int argc, const char *argv[]) {
 
     auto FileType = TargetMachine::CGFT_ObjectFile;
 
-    if (TM->addPassesToEmitFile(PM, dest, FileType)) {
+    /*
+     *
+     *   /// Add passes to the specified pass manager to get the specified file
+  /// emitted.  Typically this will involve several steps of code generation.
+  /// This method should return true if emission of this file type is not
+  /// supported, or false on success.
+  /// \p MMI is an optional parameter that, if set to non-nullptr,
+  /// will be used to set the MachineModuloInfo for this PM.
+  virtual bool addPassesToEmitFile(PassManagerBase &, raw_pwrite_stream &,
+                                   raw_pwrite_stream *, CodeGenFileType,
+                                   bool DisableVerify = true,
+              MachineModuleInfo *MMI = nullptr) {
+     */
+
+    if (TM->addPassesToEmitFile(PM, dest, &dest, FileType)) {
       errs() << "TM can't emit a file of this type";
       return 1;
     }

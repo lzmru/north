@@ -9,7 +9,7 @@
 
 #include "Type/Module.h"
 #include "Diagnostic.h"
-#include "IR/IRBuilder.h"
+#include "Targets/IRBuilder.h"
 #include "Type/Scope.h"
 #include "Type/Type.h"
 #include <AST/Dumper.h>

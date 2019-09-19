@@ -10,7 +10,7 @@
 #include "AST/Dumper.h"
 #include "Diagnostic.h"
 #include "Grammar/Parser.h"
-#include "IR/IRBuilder.h"
+#include "Targets/IRBuilder.h"
 #include "Type/Type.h"
 #include "Type/TypeInference.h"
 
@@ -19,7 +19,7 @@
 
 #define M Module.get()
 
-namespace north::ir {
+namespace north::targets {
 
 using namespace llvm;
 
@@ -78,4 +78,4 @@ Value *IRBuilder::visit(ast::ReturnStmt &Return) {
   return Builder.CreateRetVoid();
 }
 
-} // namespace north::ir
+} // namespace north::targets

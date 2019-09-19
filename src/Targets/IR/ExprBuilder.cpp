@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "Diagnostic.h"
-#include "IR/IRBuilder.h"
+#include "Targets/IRBuilder.h"
 #include "Type/Type.h"
 #include "Type/TypeInference.h"
 
@@ -23,15 +23,13 @@
 #include <llvm/IR/Verifier.h>
 #include <llvm/Transforms/IPO/FunctionImport.h>
 
-#include <AST/Dumper.h>
-#include <llvm/ADT/SmallVector.h>
 #include <llvm/ADT/Twine.h>
 #include <llvm/Support/FormatVariadic.h>
 #include <llvm/Support/raw_ostream.h>
 
 #define M Module.get()
 
-namespace north::ir {
+namespace north::targets {
 
 using namespace llvm;
 
@@ -473,4 +471,4 @@ Value *IRBuilder::visit(ast::ArrayExpr &Array) {
   return ConstantArray::get(Ty, Values);
 }
 
-} // namespace north::ir
+} // namespace north::targets

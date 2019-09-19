@@ -18,15 +18,20 @@ set(SOURCE_FILES
         src/Diagnostic.cpp
         src/Trace.cpp
         src/AST/Dumper.cpp
-        src/IR/StmtBuilder.cpp
+        src/Targets/IR/StmtBuilder.cpp
         src/Type/Module.cpp
         src/Type/Scope.cpp
         src/Type/TypeInference.cpp
         src/Type/Type.cpp
-        src/IR/ExprBuilder.cpp
-        src/IR/StmtBuilder.cpp
-        src/IR/DeclBuilder.cpp
-        src/IR/Utils.cpp)
+        src/Targets/IR/ExprBuilder.cpp
+        src/Targets/IR/StmtBuilder.cpp
+        src/Targets/IR/DeclBuilder.cpp
+        src/Targets/C/DeclBuilder.cpp
+        src/Targets/C/StmtBuilder.cpp
+        src/Targets/C/ExprBuider.cpp
+        include/Targets/CBuilder.h
+        include/Targets/BuilderBase.h
+        src/Targets/IR/Utils.cpp)
 
 add_executable(north ${SOURCE_FILES})
 

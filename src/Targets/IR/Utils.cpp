@@ -8,11 +8,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "Diagnostic.h"
-#include "IR/IRBuilder.h"
+#include "Targets/IRBuilder.h"
 #include "Type/Type.h"
 #include <llvm/Support/raw_ostream.h>
 
-namespace north::ir {
+namespace north::targets {
 
 using namespace llvm;
 
@@ -22,7 +22,7 @@ type::Type *IRBuilder::getTypeFromIdent(ast::Node *Ident) {
       return Type;
     Diagnostic(Module->getModuleIdentifier())
         .semanticError("unknown symbol `" + Literal->getTokenInfo().toString() +
-                       "`");
+            "`");
   }
 
   llvm_unreachable("getTypeFromIdent() argument must be a literal");
@@ -51,7 +51,7 @@ Value *IRBuilder::getStructField(ast::Node *Expr, Value *IR,
 
       Diagnostic(Module->getModuleIdentifier())
           .semanticError("structure " + Struct->getIdentifier() +
-                         "doesn't has field `" + FieldName + "`");
+              "doesn't has field `" + FieldName + "`");
       return nullptr;
     };
 
@@ -84,7 +84,7 @@ Value *IRBuilder::getStructField(ast::Node *Expr, Value *IR,
 
       Diagnostic(Module->getModuleIdentifier())
           .semanticError("structure " + Struct->getIdentifier() +
-                         "doesn't has field `" + FieldName + "`");
+              "doesn't has field `" + FieldName + "`");
       return nullptr;
     };
 
@@ -117,7 +117,7 @@ Value *IRBuilder::getStructField(ast::Node *Expr, Value *IR,
 
       Diagnostic(Module->getModuleIdentifier())
           .semanticError("structure " + Struct->getIdentifier() +
-                         "doesn't has field `" + FieldName + "`");
+              "doesn't has field `" + FieldName + "`");
       return nullptr;
     };
 
@@ -133,4 +133,4 @@ Value *IRBuilder::getStructField(ast::Node *Expr, Value *IR,
   llvm_unreachable("struct w/o initializer");
 }
 
-} // namespace north::ir
+} // namespace north::targets
