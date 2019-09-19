@@ -1,6 +1,6 @@
 # Build
 ## Requirements
-* Compiler with C++17 support
+* C++ compiler
 
 | Compiler | Version |
 |----------|---------|
@@ -9,7 +9,10 @@
 | MSVC     | 19.10+  |
 * Cmake 3.8+
 * LLVM 5
-## OS X
+
+
+## Build
+### macOS
 ```
 brew install llvm cmake git
 git clone https://github.com/lzmru/north
