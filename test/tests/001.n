@@ -1,0 +1,4 @@
+open T
+def t():
+  test()
+  123
