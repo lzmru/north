@@ -13,17 +13,20 @@
 #include "Token.h"
 
 #include <bitset>
+#include <llvm/Support/SourceMgr.h>
 
 namespace north {
 
 class Lexer {
-  const char *Filename;
+  llvm::SourceMgr& SourceManager;
+
   const char *Buffer;
   const char *BufferEnd;
+
   Position Pos;
   std::bitset<2> Flags;
-  uint8_t IndentLevel;
-  bool NewLine;
+  uint8_t IndentLevel = 0;
+  bool NewLine = false;
 
 public:
   enum LexerFlag {
@@ -31,14 +34,18 @@ public:
     IndentationSensitive = 1,
   };
 
-  explicit Lexer(const char *Path);
+  explicit Lexer(llvm::SourceMgr&);
+
   void turnFlag(LexerFlag F, bool State) { Flags[F] = State; }
   bool getFlagState(LexerFlag F) { return Flags[F]; }
+
   TokenInfo getNextToken();
 
   void incrementIndentLevel() { ++IndentLevel; }
   void decrementIndentLevel() { --IndentLevel; }
   uint8_t getIndentLevel() { return IndentLevel; }
+
+  const llvm::SourceMgr& getSourceManager() const { return SourceManager; }
 
 private:
   void skipWhitespace();

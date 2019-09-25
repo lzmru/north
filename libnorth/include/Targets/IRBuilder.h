@@ -25,8 +25,8 @@ class IRBuilder : public ast::Visitor, BuilderBase {
   static llvm::LLVMContext Context;
 
 public:
-  explicit IRBuilder(north::type::Module *Module)
-      : Builder(Context), BuilderBase(Module),
+  explicit IRBuilder(north::type::Module *Module, llvm::SourceMgr& SourceManager)
+      : Builder(Context), BuilderBase(Module, SourceManager),
         CurrentScope(Module->getGlobalScope()), CurrentFn(nullptr) {}
 
   static llvm::LLVMContext &getContext() { return Context; }

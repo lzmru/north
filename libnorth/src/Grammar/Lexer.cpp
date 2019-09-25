@@ -18,10 +18,6 @@
 /// IDENTIFIER = CHAR | '_' { SYMBOL };
 
 #include "Grammar/Lexer.h"
-#include "../../include/Diagnostic.h"
-
-#include <iostream>
-#include <llvm/Support/raw_ostream.h>
 
 namespace north {
 
@@ -44,6 +40,15 @@ const Keyword Keywords[KW_COUNT] = {
     {"var", 3, Token::Var},       {"while", 5, Token::While}};
 
 } // namespace
+
+Lexer::Lexer(llvm::SourceMgr& SourceMgr) : SourceManager(SourceMgr) {
+  Buffer = SourceManager.getMemoryBuffer(1)->getBufferStart();
+  BufferEnd = SourceManager.getMemoryBuffer(1)->getBufferEnd();
+
+  Pos.Offset = Buffer;
+  Pos.Column = 1;
+  Pos.Line = 1;
+}
 
 void Lexer::skipWhitespace() {
   if (NewLine)
@@ -125,32 +130,8 @@ uint8_t Lexer::checkIndentLevel() {
   return I;
 }
 
-Lexer::Lexer(const char *Path) {
-  // Flags |= IndentationSensitive;
-  Flags.reset();
-  NewLine = false;
-  IndentLevel = 0;
-  Filename = Path;
-
-  FILE *File = fopen(Filename, "r");
-
-  fseek(File, 0L, SEEK_END);
-  size_t FileSize = ftell(File);
-  rewind(File);
-
-  Buffer = new char[FileSize];
-
-  fread((void *)Buffer, sizeof(char), FileSize, File);
-  fclose(File);
-
-  Pos.Offset = Buffer;
-  BufferEnd = Buffer + FileSize;
-  Pos.Column = 1;
-  Pos.Line = 1;
-}
-
 TokenInfo Lexer::getNextToken() {
-__start:
+  __start:
 
   skipWhitespace();
 
@@ -207,7 +188,7 @@ __start:
       do {
         ++Pos.Length;
       } while (Pos.Offset[Pos.Length] == '_' ||
-               isalnum(Pos.Offset[Pos.Length]));
+          isalnum(Pos.Offset[Pos.Length]));
 
       return makeToken(keywordOrIdentifier());
     }
@@ -341,7 +322,13 @@ __start:
   if (*Pos.Offset == '\0' || Pos.Offset >= BufferEnd)
     return makeEof();
 
-  Diagnostic(Filename).unexpectedChar(Pos);
+
+  auto Range = llvm::SMRange(
+      llvm::SMLoc::getFromPointer(Pos.Offset),
+      llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+  SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+      "unexpected char '" + *Pos.Offset + '\'', Range);
+
   return {};
 }
 

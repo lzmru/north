@@ -8,7 +8,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "Type/Module.h"
-#include "Diagnostic.h"
 #include "Targets/IRBuilder.h"
 #include "Type/Scope.h"
 #include "Type/Type.h"
@@ -21,8 +20,8 @@ namespace north::type {
 using namespace llvm;
 using namespace sys::path;
 
-Module::Module(llvm::StringRef ModuleID, llvm::LLVMContext &C)
-    : llvm::Module(stem(ModuleID), C), GlobalScope(new Scope(this)) {
+Module::Module(llvm::StringRef ModuleID, llvm::LLVMContext &C, llvm::SourceMgr &SourceMgr)
+    : llvm::Module(stem(ModuleID), C), GlobalScope(new Scope(this)), SourceManager(SourceMgr) {
 
   setSourceFileName(ModuleID);
 
@@ -44,8 +43,10 @@ Type *Module::getType(llvm::StringRef Name) const {
   if (res != TypeList.end())
     return res->second;
 
-  Diagnostic(getSourceFileName())
-      .semanticError("The type '" + Name + "' is undefined");
+  auto Range = llvm::SMRange(llvm::SMLoc(), llvm::SMLoc());
+  SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+      "The type '" + Name + "' is undefined", Range);
+
   return nullptr;
 }
 
@@ -60,8 +61,11 @@ Module::InterfaceDecl *Module::getInterface(llvm::StringRef Name) const {
   auto res = InterfaceList.find(Name);
   if (res != InterfaceList.end())
     return res->second;
-  Diagnostic(getSourceFileName())
-      .semanticError("The interface '" + Name + "' is undefined");
+
+  auto Range = llvm::SMRange(llvm::SMLoc(), llvm::SMLoc());
+  SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+      "The interface '" + Name + "' is undefined", Range);
+
   return nullptr;
 }
 
@@ -101,18 +105,18 @@ llvm::Function *Module::getFn(ast::CallExpr &Callee, Scope *S) {
 void Module::addType(north::ast::GenericDecl *TypeDecl) {
   if (!TypeList.try_emplace(TypeDecl->getIdentifier(), new Type(TypeDecl, this))
            .second) {
-    Diagnostic(getSourceFileName())
-        .semanticError("Duplicate definition of type '" +
-                       TypeDecl->getIdentifier() + "'");
+    auto Range = llvm::SMRange(llvm::SMLoc(), llvm::SMLoc());
+    SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+        "Duplicate definition of type '" + TypeDecl->getIdentifier() + "'", Range);
   }
 }
 
 void Module::addInterface(north::ast::InterfaceDecl *Interface) {
   if (!InterfaceList.try_emplace(Interface->getIdentifier(), Interface)
            .second) {
-    Diagnostic(getSourceFileName())
-        .semanticError("Duplicate definition of interface '" +
-                       Interface->getIdentifier() + "'");
+    auto Range = llvm::SMRange(llvm::SMLoc(), llvm::SMLoc());
+    SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+        "Duplicate definition of interface '" +  Interface->getIdentifier() + "'", Range);
   }
 }
 
@@ -160,6 +164,10 @@ void Module::addFunction(north::ast::FunctionDecl *Fn) {
   }
 
   Fn->setIRValue(IR);
+}
+
+void Module::addImport(north::ast::OpenStmt *Import) {
+  ImportList.push_back(Import->getModuleName());
 }
 
 } // namespace north::type

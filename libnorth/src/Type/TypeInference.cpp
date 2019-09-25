@@ -9,7 +9,6 @@
 
 #include "Type/TypeInference.h"
 #include "AST/AST.h"
-#include "../../include/Diagnostic.h"
 #include "Type/Module.h"
 #include "Type/Scope.h"
 #include "Type/Type.h"
@@ -82,8 +81,15 @@ llvm::Value *InferenceVisitor::visit(ast::LiteralExpr &Literal) {
   if (auto Type = Mod->getTypeOrNull(L.toString()))
     return new TypedValue(Type->toIR(Mod));
 
-  Diagnostic(Mod->getModuleIdentifier())
-      .semanticError("unknown symbol `" + L.toString() + "`");
+  auto Pos = Literal.getPosition();
+
+  auto Range = llvm::SMRange(
+      llvm::SMLoc::getFromPointer(Pos.Offset),
+      llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+
+  Mod->getSourceManager().PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+      "unknown symbol `" + L.toString() + "`", Range);
+
   return nullptr;
 }
 

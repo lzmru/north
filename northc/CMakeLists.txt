@@ -18,5 +18,5 @@ set(SOURCE_FILES
 add_executable(northc ${SOURCE_FILES})
 
 llvm_map_components_to_libnames(llvm_libs all)
-find_library(LIBNORTH libnorth ${OUTPUT_DIR})
-target_link_libraries(northc ${llvm_libs} ${LIBNORTH})
+
+target_link_libraries(northc ${llvm_libs} libnorth)

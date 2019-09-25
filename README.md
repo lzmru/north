@@ -9,7 +9,7 @@
 | MSVC     | 19.10+  |
 * Cmake 3.8+
 * LLVM 5
-* Catch2s
+* Catch2
 
 ## Build
 ### macOS

@@ -13,6 +13,10 @@ add_subdirectory(libnorth)
 add_subdirectory(northc)
 
 if(BUILD_TESTING)
+    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_DIR}/test)
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_DIR}/test)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR}/test)
+
     enable_testing()
     add_subdirectory(test)
 endif()

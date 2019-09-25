@@ -28,9 +28,8 @@ class GenericDecl;
 } // namespace ast
 
 class Parser {
-  const char *Filename;
-  Lexer Lex;
-  bool Peeked;
+  Lexer& Lex;
+  bool Peeked = false;
   TokenInfo Buf[2];
 
   ast::BlockStmt *CurrentBlock = nullptr;
@@ -39,12 +38,8 @@ class Parser {
   ast::IfExpr *LastIfNode = nullptr;
 
 public:
-  explicit Parser(const char *Filename)
-      : Parser(new type::Module(Filename, targets::IRBuilder::getContext()),
-               Filename) {}
-
-  explicit Parser(type::Module *Module, const char *Filename)
-      : Filename(Filename), Lex(Filename), Peeked(false), Module(Module) {}
+  explicit Parser(Lexer& Lexer, type::Module* Module)
+      : Lex(Lexer), Module(Module) {}
 
   north::type::Module *parse();
 

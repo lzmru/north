@@ -9,16 +9,21 @@
 
 #include "Type/Scope.h"
 #include "AST/Declarations.h"
-#include "../../include/Diagnostic.h"
 #include "Type/Module.h"
 
 namespace north::type {
 
 void Scope::addElement(north::ast::VarDecl *Var) {
   if (!Vars.try_emplace(Var->getIdentifier(), Var).second) {
-    Diagnostic(Owner->getSourceFileName())
-        .semanticError("duplicate definition of variable '" +
-                       Var->getIdentifier() + "'");
+    auto Pos = Var->getPosition();
+
+    auto Range = llvm::SMRange(
+        llvm::SMLoc::getFromPointer(Pos.Offset),
+        llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+
+    Owner->getSourceManager().PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+        "duplicate definition of variable '" + Var->getIdentifier() + "'", Range);
+
   }
 }
 

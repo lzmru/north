@@ -3,8 +3,6 @@ cmake_minimum_required(VERSION 3.8)
 find_package(LLVM REQUIRED CONFIG)
 find_package(Catch2 REQUIRED)
 
-find_library(LIBNORTH libnorth ${OUTPUT_DIR})
-
 project(lexer)
 
 include_directories(
@@ -17,7 +15,7 @@ set(SOURCE_FILES Lexer.cpp)
 add_executable(lexer ${SOURCE_FILES})
 
 llvm_map_components_to_libnames(llvm_libs all)
-target_link_libraries(lexer ${llvm_libs} ${LIBNORTH} Catch2::Catch2)
+target_link_libraries(lexer ${llvm_libs} libnorth Catch2::Catch2)
 
 include(CTest)
 include(Catch)

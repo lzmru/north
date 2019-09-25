@@ -24,8 +24,8 @@ class CBuilder : public ast::Visitor, BuilderBase {
   std::error_code EC;
 
 public:
-  explicit CBuilder(north::type::Module *Module)
-      : BuilderBase(Module),
+  explicit CBuilder(north::type::Module *Module, llvm::SourceMgr& SourceManager)
+      : BuilderBase(Module, SourceManager),
       CurrentScope(Module->getGlobalScope()),
       CurrentFn(nullptr),
       outs(Module->getModuleIdentifier() + ".c", EC) {}

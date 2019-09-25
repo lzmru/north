@@ -24,11 +24,12 @@ namespace north::targets {
 
 class BuilderBase {
 protected:
+  llvm::SourceMgr& SourceManager;
   std::unique_ptr<north::type::Module> Module;
 
 public:
-  explicit BuilderBase(north::type::Module *Module)
-      : Module(Module) { assert(Module != nullptr); }
+  explicit BuilderBase(north::type::Module *Module, llvm::SourceMgr& SourceMgr)
+      : Module(Module), SourceManager(SourceMgr) { assert(Module != nullptr); }
 
   llvm::Module *getModule() { return Module.get(); }
 };

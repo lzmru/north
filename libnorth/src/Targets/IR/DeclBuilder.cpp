@@ -7,7 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "../../../include/Diagnostic.h"
 #include "Targets/IRBuilder.h"
 #include "Type/Type.h"
 #include "Type/TypeInference.h"
@@ -26,6 +25,7 @@
 #include <llvm/ADT/Twine.h>
 #include <llvm/Support/FormatVariadic.h>
 #include <llvm/Support/raw_ostream.h>
+#include <llvm/Support/SourceMgr.h>
 
 #define M Module.get()
 
@@ -56,9 +56,14 @@ Value *IRBuilder::visit(ast::VarDecl &Var) {
 
     auto InferredType = inferVarType(Var, M, CurrentScope)->toIR(M);
     if (InferredType != Type) {
-      Diagnostic(Module->getModuleIdentifier())
-          .semanticError("type of value `" + Var.getIdentifier() +
-                         "` type does't match the variable type");
+      auto Pos = Var.getPosition();
+
+      auto Range = llvm::SMRange(
+          llvm::SMLoc::getFromPointer(Pos.Offset),
+          llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+
+      SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+          "type of value `" + Var.getIdentifier() +  "` type does't match the variable type", Range);
     }
   } else {
     Type = inferVarType(Var, M, CurrentScope)->toIR(M);

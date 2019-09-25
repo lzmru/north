@@ -7,7 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "../../../include/Diagnostic.h"
 #include "Targets/IRBuilder.h"
 #include "Type/Type.h"
 #include "Type/TypeInference.h"
@@ -26,6 +25,7 @@
 #include <llvm/ADT/Twine.h>
 #include <llvm/Support/FormatVariadic.h>
 #include <llvm/Support/raw_ostream.h>
+#include <llvm/Support/SourceMgr.h>
 
 #define M Module.get()
 
@@ -35,9 +35,16 @@ using namespace llvm;
 
 Value *IRBuilder::visit(ast::UnaryExpr &Unary) {
   auto Expr = Unary.getOperand()->accept(*this);
-  if (!Expr)
-    Diagnostic(Module->getSourceFileName())
-        .semanticError(Unary.getPosition(), "invalid expression");
+  if (!Expr) {
+    auto Pos = Unary.getPosition();
+
+    auto Range = llvm::SMRange(
+        llvm::SMLoc::getFromPointer(Pos.Offset),
+        llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+
+    SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+                               "invalid expression", Range);
+  }
 
   switch (Unary.getOperator()) {
   case Token::Mult:
@@ -75,9 +82,16 @@ Value *IRBuilder::visit(ast::BinaryExpr &Expr) {
   auto LHS = Expr.getLHS()->accept(*this);
   auto RHS = Expr.getRHS()->accept(*this);
 
-  if (!LHS || !RHS)
-    Diagnostic(Module->getSourceFileName())
-        .semanticError(Expr.getPosition(), "invalid expression");
+  if (!LHS || !RHS) {
+    auto Pos = Expr.getPosition();
+
+    auto Range = llvm::SMRange(
+        llvm::SMLoc::getFromPointer(Pos.Offset),
+        llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+
+    SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+                               "invalid expression", Range);
+  }
 
   switch (Expr.getOperator()) {
   case Token::Mult:
@@ -137,6 +151,7 @@ Value *IRBuilder::visit(ast::BinaryExpr &Expr) {
 
 Value *IRBuilder::visit(ast::LiteralExpr &Literal) {
   auto Token = Literal.getTokenInfo();
+  llvm::SMRange Range;
 
   switch (Token.Type) {
   case Token::Nil:
@@ -159,9 +174,12 @@ Value *IRBuilder::visit(ast::LiteralExpr &Literal) {
                  ? Builder.CreateLoad(Var->getIRValue())
                  : Var->getIRValue();
 
-    Diagnostic(Module->getSourceFileName())
-        .semanticError(Literal.getPosition(),
-                       "unknown symbol `" + Token.toString() + "`");
+    Range = llvm::SMRange(
+        llvm::SMLoc::getFromPointer(Literal.getPosition().Offset),
+        llvm::SMLoc::getFromPointer(Literal.getPosition().Offset + Literal.getPosition().Length));
+
+    SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+                               "unknown symbol `" + Token.toString() + "`", Range);
 
   default:
     return nullptr;
@@ -173,15 +191,27 @@ Value *IRBuilder::visit(ast::RangeExpr &) { return nullptr; }
 Value *IRBuilder::visit(ast::CallExpr &Callee) {
   auto Fn = Module->getFn(Callee, CurrentScope);
 
-  if (!Fn)
-    Diagnostic(Module->getSourceFileName())
-        .semanticError(Callee.getPosition(), "unknown function referenced");
+  if (!Fn) {
+    auto Pos = Callee.getPosition();
 
-  if (Callee.numberOfArgs() != Fn->arg_size() && !Fn->isVarArg())
-    Diagnostic(Module->getSourceFileName())
-        .semanticError(Callee.getPosition(),
-                       formatv("expected {0} arg, not {1}", Fn->arg_size(),
-                               Callee.numberOfArgs()));
+    auto Range = llvm::SMRange(
+        llvm::SMLoc::getFromPointer(Pos.Offset),
+        llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+
+    SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+                               "unknown function referenced", Range);
+  }
+
+  if (Callee.numberOfArgs() != Fn->arg_size() && !Fn->isVarArg()) {
+    auto Pos = Callee.getPosition();
+
+    auto Range = llvm::SMRange(
+        llvm::SMLoc::getFromPointer(Pos.Offset),
+        llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+
+    SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+        formatv("expected {0} arg, not {1}", Fn->arg_size(), Callee.numberOfArgs()), Range);
+  }
 
   std::vector<Value *> Args;
   if (Callee.hasArgs()) {
@@ -248,9 +278,16 @@ Value *IRBuilder::visit(ast::IfExpr &If) {
   auto Cond = If.getExpr()->accept(*this);
   GetVal = false;
 
-  if (!Cond)
-    Diagnostic(Module->getSourceFileName())
-        .semanticError(If.getPosition(), "empty if condition");
+  if (!Cond) {
+    auto Pos = If.getPosition();
+
+    auto Range = llvm::SMRange(
+        llvm::SMLoc::getFromPointer(Pos.Offset),
+        llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+
+    SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+                               "empty if condition", Range);
+  }
 
   Cond = cmpWithTrue(Cond);
 
@@ -263,9 +300,16 @@ Value *IRBuilder::visit(ast::IfExpr &If) {
   Builder.CreateCondBr(Cond, ThenBB, ElseBB);
   Builder.SetInsertPoint(ThenBB);
 
-  if (!If.getBlock())
-    Diagnostic(Module->getSourceFileName())
-        .semanticError(If.getPosition(), "empty if block");
+  if (!If.getBlock()) {
+    auto Pos = If.getPosition();
+
+    auto Range = llvm::SMRange(
+        llvm::SMLoc::getFromPointer(Pos.Offset),
+        llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+
+    SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+                               "empty if block", Range);
+  }
   auto Then = If.getBlock()->accept(*this);
 
   Builder.CreateBr(MergeBB);
@@ -279,11 +323,18 @@ Value *IRBuilder::visit(ast::IfExpr &If) {
     Else = Builder.CreateICmp(
         llvm::CmpInst::ICMP_NE, Cond,
         ConstantInt::get(Type::getInt1Ty(Context), 1, false), "ifcond");
-    if (auto ElseBlock = ElseBranch->getBlock())
+    if (auto ElseBlock = ElseBranch->getBlock()) {
       ElseBlock->accept(*this);
-    else
-      Diagnostic(Module->getSourceFileName())
-          .semanticError(If.getPosition(), "empty else block");
+    } else {
+      auto Pos = If.getPosition();
+
+      auto Range = llvm::SMRange(
+          llvm::SMLoc::getFromPointer(Pos.Offset),
+          llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+
+      SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+                                 "empty else block", Range);
+    }
 
     Builder.CreateBr(MergeBB);
     ElseBB = Builder.GetInsertBlock();
@@ -320,8 +371,14 @@ Value *IRBuilder::visit(ast::ForExpr &For) {
   }
 
   if (!StartVal || !EndVal) {
-    Diagnostic(Module->getSourceFileName())
-        .semanticError(For.getPosition(), "invalid range");
+    auto Pos = For.getPosition();
+
+    auto Range = llvm::SMRange(
+        llvm::SMLoc::getFromPointer(Pos.Offset),
+        llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+
+    SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+                               "invalid range", Range);
   }
 
   auto Fn = Builder.GetInsertBlock()->getParent();
@@ -357,9 +414,16 @@ Value *IRBuilder::visit(ast::ForExpr &For) {
 Value *IRBuilder::visit(ast::WhileExpr &While) {
   auto Cond = While.getExpr()->accept(*this);
 
-  if (!Cond)
-    Diagnostic(Module->getSourceFileName())
-        .semanticError(While.getPosition(), "invalid while expression");
+  if (!Cond) {
+    auto Pos = While.getExpr()->getPosition();
+
+    auto Range = llvm::SMRange(
+        llvm::SMLoc::getFromPointer(Pos.Offset),
+        llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+
+    SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+                               "invalid while expression", Range);
+  }
 
   auto Fn = Builder.GetInsertBlock()->getParent();
   auto PreheaderBB = Builder.GetInsertBlock();
@@ -396,9 +460,16 @@ Value *IRBuilder::visit(ast::AssignExpr &Assign) {
   auto LHS = Assign.getLHS()->accept(*this),
        RHS = Assign.getRHS()->accept(*this);
 
-  if (!LHS || !RHS)
-    Diagnostic(Module->getSourceFileName())
-        .semanticError(Assign.getPosition(), "invalid assign expression");
+  if (!LHS || !RHS) {
+    auto Pos = Assign.getPosition();
+
+    auto Range = llvm::SMRange(
+        llvm::SMLoc::getFromPointer(Pos.Offset),
+        llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+
+    SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+                               "invalid assign expression", Range);
+  }
 
   switch (Assign.getOperator()) {
   case Token::Assign:
@@ -459,11 +530,16 @@ Value *IRBuilder::visit(ast::ArrayExpr &Array) {
 
   for (auto I : Array.getValues()) {
     auto Elem = I->accept(*this);
-    if (Elem->getType() != FirstElemTy &&
-        !CastInst::isCastable(Elem->getType(), FirstElemTy))
-      Diagnostic(Module->getSourceFileName())
-          .semanticError(Array.getPosition(),
-                         "array elements can't has different types");
+    if (Elem->getType() != FirstElemTy && !CastInst::isCastable(Elem->getType(), FirstElemTy)) {
+      auto Pos = Array.getPosition();
+
+      auto Range = llvm::SMRange(
+          llvm::SMLoc::getFromPointer(Pos.Offset),
+          llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+
+      SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+                                 "array elements can't has different types", Range);
+    }
 
     Values.push_back(static_cast<Constant *>(Elem));
   }

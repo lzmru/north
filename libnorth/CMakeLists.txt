@@ -24,7 +24,7 @@ set(SOURCE_FILES
         src/Targets/C/StmtBuilder.cpp
         src/Targets/C/ExprBuider.cpp
         src/Targets/IR/Utils.cpp
-        src/Diagnostic.cpp)
+        )
 
 add_library(libnorth ${SOURCE_FILES})
 set_target_properties(libnorth PROPERTIES PREFIX "")

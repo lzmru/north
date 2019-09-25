@@ -7,7 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "../../../include/Diagnostic.h"
 #include "Targets/IRBuilder.h"
 #include "Type/Type.h"
 #include <llvm/Support/raw_ostream.h>
@@ -20,9 +19,15 @@ type::Type *IRBuilder::getTypeFromIdent(ast::Node *Ident) {
   if (auto Literal = dyn_cast<ast::LiteralExpr>(Ident)) {
     if (auto Type = Module->getTypeOrNull(Literal->getTokenInfo().toString()))
       return Type;
-    Diagnostic(Module->getModuleIdentifier())
-        .semanticError("unknown symbol `" + Literal->getTokenInfo().toString() +
-            "`");
+
+    auto Pos = Literal->getTokenInfo().Pos;
+
+    auto Range = llvm::SMRange(
+        llvm::SMLoc::getFromPointer(Pos.Offset),
+        llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+
+    Module->getSourceManager().PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+        "unknown symbol `" + Literal->getTokenInfo().toString() + "`", Range);
   }
 
   llvm_unreachable("getTypeFromIdent() argument must be a literal");
@@ -49,9 +54,15 @@ Value *IRBuilder::getStructField(ast::Node *Expr, Value *IR,
         ++I;
       }
 
-      Diagnostic(Module->getModuleIdentifier())
-          .semanticError("structure " + Struct->getIdentifier() +
-              "doesn't has field `" + FieldName + "`");
+      auto Pos = Struct->getPosition();
+
+      auto Range = llvm::SMRange(
+          llvm::SMLoc::getFromPointer(Pos.Offset),
+          llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+
+      Module->getSourceManager().PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+          "structure " + Struct->getIdentifier() + "doesn't has field `" + FieldName + "`", Range);
+
       return nullptr;
     };
 
@@ -82,9 +93,15 @@ Value *IRBuilder::getStructField(ast::Node *Expr, Value *IR,
         ++I;
       }
 
-      Diagnostic(Module->getModuleIdentifier())
-          .semanticError("structure " + Struct->getIdentifier() +
-              "doesn't has field `" + FieldName + "`");
+      auto Pos = Struct->getPosition();
+
+      auto Range = llvm::SMRange(
+          llvm::SMLoc::getFromPointer(Pos.Offset),
+          llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+
+      Module->getSourceManager().PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+          "structure " + Struct->getIdentifier() + "doesn't has field `" + FieldName + "`", Range);
+
       return nullptr;
     };
 
@@ -115,9 +132,15 @@ Value *IRBuilder::getStructField(ast::Node *Expr, Value *IR,
         ++I;
       }
 
-      Diagnostic(Module->getModuleIdentifier())
-          .semanticError("structure " + Struct->getIdentifier() +
-              "doesn't has field `" + FieldName + "`");
+      auto Pos = Struct->getPosition();
+
+      auto Range = llvm::SMRange(
+          llvm::SMLoc::getFromPointer(Pos.Offset),
+          llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+
+      Module->getSourceManager().PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+          "structure " + Struct->getIdentifier() + "doesn't has field `" + FieldName + "`", Range);
+
       return nullptr;
     };
 

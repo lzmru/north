@@ -45,7 +45,7 @@ using namespace llvm;
 using namespace llvm::sys;
 
 static cl::opt<std::string>
-    FileName(cl::Positional, cl::desc("<Path to sources>"), cl::Required);
+    Path(cl::Positional, cl::desc("<Path to sources>"), cl::Required);
 
 static cl::opt<std::string> OutputFilename("o",
                                            cl::desc("Specify output filename"),
@@ -69,22 +69,34 @@ int main(int argc, const char *argv[]) {
 
   cl::ParseCommandLineOptions(argc, argv, "The North language compiler\n");
 
-  StringMap<Module *> ModuleMap;
-  north::Parser parser(FileName.c_str());
-  auto Module = parser.parse();
+  auto MemBuff = llvm::MemoryBuffer::getFile(Path);
+  if (auto Error = MemBuff.getError()) {
+    llvm::errs() << Path << ": " << Error.message() << '\n';
+    return 0;
+  }
+
+  llvm::SourceMgr SourceManager;
+  SourceManager.AddNewSourceBuffer(std::move(*MemBuff), llvm::SMLoc());
+
+  north::Lexer Lexer(SourceManager);
+
+  auto Module = new north::type::Module(Path, north::targets::IRBuilder::getContext(), SourceManager);
+  north::Parser Parser(Lexer, Module);
+
+  auto ParsedModule = Parser.parse();
 
   if (EmitAST.getValue()) {
     north::ast::Dumper Dumper;
-    applyVisitor(Dumper, Module);
+    applyVisitor(Dumper, ParsedModule);
     return 0;
   }
 
   if (OutputTarget.getValue() == "c") {
-    north::targets::CBuilder C(Module);
-    applyVisitor(C, Module);
+    north::targets::CBuilder C(ParsedModule, SourceManager);
+    applyVisitor(C, ParsedModule);
   } else {
-    north::targets::IRBuilder IR(Module);
-    applyVisitor(IR, Module);
+    north::targets::IRBuilder IR(ParsedModule, SourceManager);
+    applyVisitor(IR, ParsedModule);
 
     verifyModule(*Module, &outs());
 

@@ -8,12 +8,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "Grammar/Parser.h"
-#include "../../../northc/include/Trace.h"
 
 #include "AST/AST.h"
-#include "../../include/Diagnostic.h"
 
 #include <llvm/IR/Function.h>
+#include <llvm/Support/FormatVariadic.h>
 
 namespace north {
 
@@ -51,7 +50,17 @@ bool Parser::match(Token With) {
 void Parser::expect(Token What) {
   if (!match(What)) {
     nextToken();
-    Diagnostic(Filename).expectedToken(What, Buf[0]);
+
+    auto Pos = Buf[0].Pos;
+
+    auto Range = llvm::SMRange(
+        llvm::SMLoc::getFromPointer(Pos.Offset),
+        llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+    auto Msg = llvm::formatv("expected {0}, found {1}\n", tokenToString(What),
+                             tokenToString(Buf[0].Type));
+
+    Lex.getSourceManager().PrintMessage(Range.Start,
+        llvm::SourceMgr::DiagKind::DK_Error, Msg, Range);
   }
 }
 
@@ -207,7 +216,14 @@ north::type::Module *Parser::parse() {
       return Module;
 
     default:
-      Diagnostic(Filename).unexpectedChar(Buf[0].Pos);
+      auto Pos = Buf[0].Pos;
+
+      auto Range = llvm::SMRange(
+          llvm::SMLoc::getFromPointer(Pos.Offset),
+          llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+
+      Lex.getSourceManager().PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+          "unexpected char '" + *Pos.Offset + '\'', Range);
     }
   }
 }
@@ -262,7 +278,14 @@ ast::GenericDecl *Parser::parseTypeDefinition() {
     break;
 
   default:
-    Diagnostic(Filename).invalidTypeDecl(Buf[0]);
+    auto Pos = Buf[0].Pos;
+
+    auto Range = llvm::SMRange(
+        llvm::SMLoc::getFromPointer(Pos.Offset),
+        llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+
+    Lex.getSourceManager().PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+                                        "invalid type declaration", Range);
   }
 
   Module->addType(Result);
@@ -291,7 +314,14 @@ ast::GenericDecl *Parser::parseTypeDecl() {
     return parseTupleDecl();
 
   default:
-    Diagnostic(Filename).invalidTypeDecl(Buf[0]);
+    auto Pos = Buf[0].Pos;
+
+    auto Range = llvm::SMRange(
+        llvm::SMLoc::getFromPointer(Pos.Offset),
+        llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+
+    Lex.getSourceManager().PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+                                        "invalid type declaration", Range);
   }
 
   return nullptr;
@@ -326,10 +356,18 @@ ast::UnionDecl *Parser::parseUnionDecl() {
   auto Union = new ast::UnionDecl(Buf[0]);
 
   do {
-    if (auto Type = parseTypeDecl())
+    if (auto Type = parseTypeDecl()) {
       Union->addField(Type);
-    else
-      Diagnostic(Filename).invalidUnionDecl(Buf[0]);
+    } else {
+      auto Pos = Buf[0].Pos;
+
+      auto Range = llvm::SMRange(
+          llvm::SMLoc::getFromPointer(Pos.Offset),
+          llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+
+      Lex.getSourceManager().PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+                                          "invalid union declaration: unexpected " + Buf[0].toString(), Range);
+    }
   } while (match(Token::Or));
 
   return Union;
@@ -354,10 +392,18 @@ ast::TupleDecl *Parser::parseTupleDecl() {
   auto Tuple = new ast::TupleDecl(Buf[0]);
 
   do {
-    if (auto Member = parseVarDecl())
+    if (auto Member = parseVarDecl()) {
       Tuple->addMember(Member);
-    else
-      Diagnostic(Filename).invalidTupleDecl(Buf[0]);
+    } else {
+      auto Pos = Buf[0].Pos;
+
+      auto Range = llvm::SMRange(
+          llvm::SMLoc::getFromPointer(Pos.Offset),
+          llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+
+      Lex.getSourceManager().PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+                                          "invalid tuple declaration: unexpected " + Buf[0].toString(), Range);
+    }
   } while (match(Token::Comma));
 
   expect(Token::RParen);
@@ -452,9 +498,16 @@ ast::Node *Parser::parsePrefix() {
     return parseIfExpr();
 
   case Token::Else:
-    if (!LastIfNode)
-      Diagnostic(Module->getModuleIdentifier())
-          .semanticError("else without if");
+    if (!LastIfNode) {
+      auto Pos = Buf[0].Pos;
+
+      auto Range = llvm::SMRange(
+          llvm::SMLoc::getFromPointer(Pos.Offset),
+          llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+
+      Lex.getSourceManager().PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+                                          "else without if", Range);
+    }
     LastIfNode->setElseBranch(parseIfExpr(true));
     LastIfNode = LastIfNode->getElseBranch();
     ExpectNull = true;
@@ -546,14 +599,21 @@ ast::StructInitExpr *Parser::parseStructInitExpr(ast::Node *Ident) {
 ast::CallExpr *Parser::parseCallExpr(ast::Node *Ident) {
   ast::CallExpr *Callee = nullptr;
 
-  if (auto I = llvm::dyn_cast<ast::QualifiedIdentifierExpr>(Ident))
+  if (auto I = llvm::dyn_cast<ast::QualifiedIdentifierExpr>(Ident)) {
     Callee = new ast::CallExpr(I);
-  else if (auto L = llvm::dyn_cast<ast::LiteralExpr>(Ident))
+  } else if (auto L = llvm::dyn_cast<ast::LiteralExpr>(Ident)) {
     Callee =
         new ast::CallExpr(new ast::QualifiedIdentifierExpr(L->getTokenInfo()));
-  else
-    Diagnostic(Filename).semanticError(Ident->getPosition(),
-                                       "invalid call expr");
+  } else {
+    auto Pos = Buf[0].Pos;
+
+    auto Range = llvm::SMRange(
+        llvm::SMLoc::getFromPointer(Pos.Offset),
+        llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+
+    Lex.getSourceManager().PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+                                        "invalid call expression", Range);
+  }
 
   if (peekToken() != Token::RParen) {
     while (true) {
@@ -572,11 +632,18 @@ ast::CallExpr *Parser::parseCallExpr(ast::Node *Ident) {
 ast::ArrayIndexExpr *Parser::parseArrayIndexExpr(ast::Node *Ident) {
   auto Idx = new ast::ArrayIndexExpr(Ident);
 
-  if (auto Expr = parseExpression())
+  if (auto Expr = parseExpression()) {
     Idx->setIdxExpr(Expr);
-  else
-    Diagnostic(Filename).semanticError(Ident->getPosition(),
-                                       "invalid array index");
+  } else {
+    auto Pos = Buf[0].Pos;
+
+    auto Range = llvm::SMRange(
+        llvm::SMLoc::getFromPointer(Pos.Offset),
+        llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+
+    Lex.getSourceManager().PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+                                        "invalid array index", Range);
+  }
 
   expect(Token::RBracket);
   return Idx;
@@ -620,7 +687,14 @@ ast::ForExpr *Parser::parseForExpr() {
     return Loop;
   } else {
   __error:
-    Diagnostic(Filename).invalidForExpr(Buf[0]);
+    auto Pos = Buf[0].Pos;
+
+    auto Range = llvm::SMRange(
+        llvm::SMLoc::getFromPointer(Pos.Offset),
+        llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+
+    Lex.getSourceManager().PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+                                        "invalid for expression: unexpected " + Buf[0].toString(), Range);
     return nullptr;
   }
 }
@@ -658,10 +732,18 @@ ast::RangeExpr *Parser::parseRangeExpr() {
   auto Range = new ast::RangeExpr(Buf[0]);
   expect(Token::DotDot);
 
-  if (tryParseLiteral())
+  if (tryParseLiteral()) {
     Range->setEndValue(new ast::LiteralExpr(Buf[0]));
-  else
-    Diagnostic(Filename).invalidRangeExpr(Buf[0]);
+  } else {
+    auto Pos = Buf[0].Pos;
+
+    auto Range = llvm::SMRange(
+        llvm::SMLoc::getFromPointer(Pos.Offset),
+        llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+
+    Lex.getSourceManager().PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+                                        "invalid range expression: unexpected " + Buf[0].toString(), Range);
+  }
 
   return Range;
 }
@@ -679,8 +761,16 @@ ast::ArrayExpr *Parser::parseArrayExpr() {
   }
   expect(Token::RBracket);
 
-  if (!Array->getCap())
-    Diagnostic(Filename).semanticError("empty array");
+  if (!Array->getCap()) {
+    auto Pos = Buf[0].Pos;
+
+    auto Range = llvm::SMRange(
+        llvm::SMLoc::getFromPointer(Pos.Offset),
+        llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+
+    Lex.getSourceManager().PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+                                        "unimplemented: empty array", Range);
+  }
 
   Lex.turnFlag(Lexer::IndentationSensitive, true);
 
