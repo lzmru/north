@@ -115,7 +115,7 @@ public:
 
     for (auto Arg : Func.getArgumentList()) {
       Dumper Dump;
-      Arg->accept(Dump);
+      Arg->Arg->accept(Dump);
     }
   }
 

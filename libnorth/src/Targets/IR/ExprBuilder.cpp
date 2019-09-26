@@ -260,14 +260,14 @@ Value *IRBuilder::visit(ast::CallExpr &Callee) {
     Args.reserve(Callee.numberOfArgs() - 1);
     LoadArg = true;
     for (auto &Arg : Callee.getArgumentList()) {
+
       GetVal = true;
-      auto Val = Arg->accept(*this);
+      auto Val = Arg->Arg->accept(*this);
 
       if (Val->getType()->isPointerTy()) {
-        if (auto Arr =
-                dyn_cast<ArrayType>(Val->getType()->getPointerElementType()))
+        if (auto Arr = dyn_cast<ArrayType>(Val->getType()->getPointerElementType()))
           Val = Builder.CreateBitCast(Val,
-                                      Arr->getElementType()->getPointerTo(0));
+              Arr->getElementType()->getPointerTo(0));
       }
 
       Args.push_back(Val);

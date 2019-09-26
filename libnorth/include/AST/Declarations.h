@@ -69,6 +69,7 @@ class VarDecl : public Declaration {
   llvm::Value *IRValue;
   llvm::Type *IRType;
   bool IsArg;
+  llvm::StringRef NamedArg;
 
 public:
   explicit VarDecl(const TokenInfo &TkInfo, bool Arg = false)
@@ -88,6 +89,9 @@ public:
   void setIRType(llvm::Type *T) { IRType = T; }
 
   bool isArg() { return IsArg; }
+
+  llvm::StringRef getNamedArg() { return NamedArg; }
+  void setNamedArg(llvm::StringRef Name) { NamedArg = Name; }
 
   AST_NODE(VarDecl)
 };

@@ -113,19 +113,32 @@ public:
 };
 
 class CallExpr : public Node {
-  std::vector<Node *> Args;
+public:
+  struct Argument {
+    Node *Arg;
+    llvm::StringRef ArgName;
+  };
+
+private:
+  std::vector<Argument *> Args;
   QualifiedIdentifierExpr *Ident;
   llvm::Value *IRValue;
 
 public:
+
   explicit CallExpr(QualifiedIdentifierExpr *Identifier)
       : Node(Identifier->getPosition(), AST_CallExpr), Ident(Identifier) {}
 
   bool hasArgs() { return !Args.empty(); }
   size_t numberOfArgs() { return Args.size(); }
-  llvm::ArrayRef<Node *> getArgumentList() const { return Args; }
-  void addArgument(Node *Argument) { Args.push_back(Argument); }
-  void insertArgument(Node *Argument) { Args.insert(Args.begin(), Argument); }
+  llvm::ArrayRef<Argument *> getArgumentList() const { return Args; }
+
+  void addArgument(Node *Arg, llvm::StringRef ArgName = "") {
+    Args.push_back(new Argument {Arg, ArgName});
+  }
+  void insertArgument(Node *Arg, llvm::StringRef ArgName = "") {
+    Args.insert(Args.begin(), new Argument {Arg, ArgName});
+  }
 
   void setIdentifier(QualifiedIdentifierExpr *NewIdent) { Ident = NewIdent; }
   QualifiedIdentifierExpr *getIdentifier() { return Ident; }

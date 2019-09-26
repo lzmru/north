@@ -34,7 +34,7 @@ llvm::Value *CBuilder::visit(ast::CallExpr &Callee) {
 
   const auto& ArgList = Callee.getArgumentList();
   for (int I = 0; I < ArgList.size(); ++I) {
-    ArgList[I]->accept(*this);
+    ArgList[I]->Arg->accept(*this);
     outs << (I+1 > ArgList.size() ? ", " : "");
   }
 

@@ -223,7 +223,7 @@ north::type::Module *Parser::parse() {
           llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
 
       Lex.getSourceManager().PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
-          "unexpected char '" + *Pos.Offset + '\'', Range);
+          "unexpected char '" + llvm::StringRef(Pos.Offset, 1) + llvm::StringRef("\'"), Range);
     }
   }
 }
@@ -468,6 +468,7 @@ ast::InterfaceDecl *Parser::parseInterfaceDecl() {
 
 ast::Node *Parser::parseExpression(uint8_t Prec) {
   nextToken();
+
   ast::Node *Result = parsePrefix();
 
   while (Prec < getTokenPrec(peekToken())) {
@@ -622,7 +623,14 @@ ast::CallExpr *Parser::parseCallExpr(ast::Node *Ident) {
 
   if (peekToken() != Token::RParen) {
     while (true) {
-      Callee->addArgument(parseExpression()); // new ast::LiteralExpr(Buf[0]));
+      if (match(Token::Identifier) && peekToken() == Token::Colon) {
+        auto Name = Buf[0].toString();
+        nextToken();
+        Callee->addArgument(parseExpression(), Name);
+      } else {
+        Callee->addArgument(parseExpression());
+      }
+
       if (!match(Token::Comma))
         break;
     }
@@ -811,7 +819,8 @@ ast::FunctionDecl *Parser::parseFunctionSignature() {
   return Signature;
 }
 
-/// argumentList = '(' { varDecl { ',' varDecl } } ['...'] ')';
+/// arg = ( WILDCARD | IDENTIFIER );
+/// argumentList = '(' { arg? varDecl { ',' arg? varDecl } } ['...'] ')';
 void Parser::parseArgumentList(ast::FunctionDecl *Function) {
   expect(Token::LParen);
   if (match(Token::RParen))
@@ -822,6 +831,8 @@ void Parser::parseArgumentList(ast::FunctionDecl *Function) {
       Function->setVarArg(true);
       break;
     }
+
+
     Function->addArgument(parseVarDecl(true));
   } while (match(Token::Comma));
 
@@ -875,12 +886,33 @@ ast::BlockStmt *Parser::parseBlockStmt() {
   return Block;
 }
 
-/// varDecl = IDENTIFIER [':' typeDecl] ['=' expr];
+/// varDecl = [WILDCARD | IDENTIFIER] IDENTIFIER [':' typeDecl] ['=' expr];
 ast::VarDecl *Parser::parseVarDecl(bool IsArg) {
-  if (!match(Token::Identifier))
-    return nullptr;
+  if (!match(Token::Identifier) && !match(Token::Wildcard)) {
+    if (IsArg) {
+      auto Pos = Buf[0].Pos;
+
+      auto Range = llvm::SMRange(
+          llvm::SMLoc::getFromPointer(Pos.Offset),
+          llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+
+      Lex.getSourceManager().PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+          "expected `identifier` or `_`, found " + Buf[0].toString(), Range);
+    } else {
+      return nullptr;
+    }
+  }
 
   auto Result = new ast::VarDecl(Buf[0], IsArg);
+
+  if (IsArg) {
+    auto Buffer = Buf[0];
+    if (match(Token::Identifier)) {
+      Result->setNamedArg(Buffer.toString());
+      Result->setIdentifier(Buf[0].toString());
+    }
+  }
+
   if (match(Token::Colon))
     Result->setType(parseTypeDecl());
   if (match(Token::Assign))
