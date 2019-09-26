@@ -234,8 +234,9 @@ ast::OpenStmt *Parser::parseOpenStmt() {
   return new ast::OpenStmt(Buf[0].Pos, Buf[0].toString());
 }
 
-/// typeDefinition = 'type' IDENTIFIER genericTypeList
-///     '=' ( aliasDecl
+/// typeDefinition =
+///     'type' IDENTIFIER genericTypeList '='
+///         ( aliasDecl
 ///         | structDecl
 ///         | unionDecl
 ///         | enumDecl
@@ -250,6 +251,10 @@ ast::GenericDecl *Parser::parseTypeDefinition() {
   expect(Token::Assign);
 
   switch (nextToken()) {
+  case Token::Mult:
+    Result->setModifier(ast::GenericDecl::Modifier::Ptr);
+    expect(Token::Identifier);
+
   case Token::Identifier:
     if (peekToken() == Token::Comma)
       Result->setTypeDecl(parseEnumDecl());

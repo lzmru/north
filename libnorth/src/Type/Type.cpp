@@ -46,6 +46,7 @@ llvm::Type *createEnumIR(ast::GenericDecl *Decl, Module *M) {
 
 llvm::Type *createIR(ast::GenericDecl *Decl, Module *M) {
   ast::TypeDef *TypeDef;
+  llvm::Type *Result = nullptr;
 
   switch (Decl->getKind()) {
   case ast::AST_TypeDef:
@@ -56,7 +57,10 @@ llvm::Type *createIR(ast::GenericDecl *Decl, Module *M) {
       return createStructIR(TypeDef, M);
 
     case ast::AST_AliasDecl:
-      return M->getType(TypeDef->getTypeDecl()->getIdentifier())->toIR(M);
+      Result = M->getType(TypeDef->getTypeDecl()->getIdentifier())->toIR(M);
+      if (Decl->isPtr())
+        Result = Result->getPointerTo(0);
+      return Result;
 
     case ast::AST_EnumDecl:
       return createEnumIR(TypeDef->getTypeDecl(), M);
