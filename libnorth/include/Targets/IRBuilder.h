@@ -38,6 +38,7 @@ private:
   llvm::Value *cmpWithTrue(llvm::Value *);
   llvm::Value *getStructField(ast::Node *, llvm::Value *,
                               ast::QualifiedIdentifierExpr &);
+  llvm::Constant *createEscapedString(ast::LiteralExpr &);
 };
 
 } // namespace north::targets

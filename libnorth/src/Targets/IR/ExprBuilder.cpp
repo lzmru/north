@@ -149,6 +149,47 @@ Value *IRBuilder::visit(ast::BinaryExpr &Expr) {
   }
 }
 
+Constant *IRBuilder::createEscapedString(ast::LiteralExpr &Literal) {
+  auto Str = Literal.getTokenInfo().toString();
+
+  std::string Buf;
+  Buf.reserve(Str.size());
+
+  size_t Start = 0;
+  while (auto EscPos = Str.find('\\', Start)) {
+    Buf += Str.slice(Start, EscPos);
+    Start = EscPos + 2;
+
+    switch (Str[EscPos+1]) {
+    case 'n':
+      Buf += "\x0A";
+      continue;
+
+    case 'r':
+      Buf += "\x0D";
+      continue;
+
+    case 't':
+      Buf += "\x09";
+      continue;
+
+    case 'v':
+      Buf += "\x0B";
+      continue;
+
+    case '\\':
+      Buf += "\\";
+      continue;
+    }
+
+    break;
+  }
+
+  return Start == 0
+    ? Builder.CreateGlobalStringPtr(Str)
+    : Builder.CreateGlobalStringPtr(Buf);
+}
+
 Value *IRBuilder::visit(ast::LiteralExpr &Literal) {
   auto Token = Literal.getTokenInfo();
   llvm::SMRange Range;
@@ -160,8 +201,9 @@ Value *IRBuilder::visit(ast::LiteralExpr &Literal) {
   case Token::Char:
     return ConstantInt::get(IntegerType::getInt8Ty(Context),
                             static_cast<uint64_t>(Token.toString().front()));
+
   case Token::String:
-    return Builder.CreateGlobalStringPtr(Token.toString());
+    return createEscapedString(Literal);
 
   case Token::Int:
     return ConstantInt::get(Context, APInt(32, Token.toString(), 10));

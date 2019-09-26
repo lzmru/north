@@ -75,6 +75,9 @@ int main(int argc, const char *argv[]) {
     return 0;
   }
 
+  if (!MemBuff->get()->getBufferSize())
+    return 0;
+
   llvm::SourceMgr SourceManager;
   SourceManager.AddNewSourceBuffer(std::move(*MemBuff), llvm::SMLoc());
 
