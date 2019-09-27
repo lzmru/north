@@ -74,7 +74,7 @@ class VarDecl : public Declaration {
 public:
   explicit VarDecl(const TokenInfo &TkInfo, bool Arg = false)
       : Declaration(TkInfo.Pos, AST_VarDecl, TkInfo.toString()), Type(nullptr),
-        Value(nullptr), IRValue(nullptr), IsArg(Arg) {}
+        Value(nullptr), IRValue(nullptr), IsArg(Arg), NamedArg(TkInfo.toString()) {}
 
   GenericDecl *getType() { return Type.get(); }
   void setType(GenericDecl *NewType) { Type.reset(NewType); }

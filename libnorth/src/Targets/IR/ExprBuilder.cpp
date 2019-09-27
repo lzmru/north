@@ -244,7 +244,8 @@ Value *IRBuilder::visit(ast::CallExpr &Callee) {
                                "unknown function referenced", Range);
   }
 
-  if (Callee.numberOfArgs() != Fn->arg_size() && !Fn->isVarArg()) {
+  auto FnArgs = Fn->getArgumentList();
+  if (Callee.numberOfArgs() != FnArgs.size() && !Fn->isVarArg()) {
     auto Pos = Callee.getPosition();
 
     auto Range = llvm::SMRange(
@@ -252,17 +253,57 @@ Value *IRBuilder::visit(ast::CallExpr &Callee) {
         llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
 
     SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
-        formatv("expected {0} arg, not {1}", Fn->arg_size(), Callee.numberOfArgs()), Range);
+        formatv("expected {0} args, not {1}", FnArgs.size(), Callee.numberOfArgs()), Range);
   }
 
   std::vector<Value *> Args;
   if (Callee.hasArgs()) {
     Args.reserve(Callee.numberOfArgs() - 1);
     LoadArg = true;
-    for (auto &Arg : Callee.getArgumentList()) {
+
+    for (size_t I = 0; I < Callee.getArgumentList().size(); ++I) {
+      auto CallArg = Callee.getArg(I);
+
+      if (auto FnArg = Fn->getArg(I); FnArg != nullptr) {
+        if (FnArg->getNamedArg() != "_") {
+
+          if (CallArg->ArgName == "") {
+            auto FnPos = CallArg->Arg->getPosition();
+
+            auto Range = llvm::SMRange(
+                llvm::SMLoc::getFromPointer(FnPos.Offset),
+                llvm::SMLoc::getFromPointer(FnPos.Offset + FnPos.Length));
+
+            SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+                                       "expected label `" + FnArg->getNamedArg() + "`", Range);
+          }
+
+          if (CallArg->ArgName != FnArg->getNamedArg()) {
+            auto Arg = CallArg->ArgName;
+
+            auto Range = llvm::SMRange(
+                llvm::SMLoc::getFromPointer(Arg.data()),
+                llvm::SMLoc::getFromPointer(Arg.data() + Arg.size()));
+
+            SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+                                       "expected label `" + FnArg->getNamedArg() + "`", Range);
+          }
+        } else {
+          if (CallArg->ArgName != "") {
+            auto Arg = CallArg->ArgName;
+
+            auto Range = llvm::SMRange(
+                llvm::SMLoc::getFromPointer(Arg.data()),
+                llvm::SMLoc::getFromPointer(Arg.data() + Arg.size()));
+
+            SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+                                       "unexpected label `" + CallArg->ArgName + "`", Range);
+          }
+        }
+      }
 
       GetVal = true;
-      auto Val = Arg->Arg->accept(*this);
+      auto Val = CallArg->Arg->accept(*this);
 
       if (Val->getType()->isPointerTy()) {
         if (auto Arr = dyn_cast<ArrayType>(Val->getType()->getPointerElementType()))
@@ -276,8 +317,10 @@ Value *IRBuilder::visit(ast::CallExpr &Callee) {
     GetVal = false;
   }
 
-  auto IR = Builder.CreateCall(Fn->getFunctionType(), Fn, Args);
+  auto FnIR = Fn->getIRValue();
+  auto IR = Builder.CreateCall(FnIR->getFunctionType(), FnIR, Args);
   Callee.setIR(IR);
+
   return IR;
 }
 

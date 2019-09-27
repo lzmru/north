@@ -69,12 +69,20 @@ Module::InterfaceDecl *Module::getInterface(llvm::StringRef Name) const {
   return nullptr;
 }
 
-llvm::Function *Module::getFn(ast::CallExpr &Callee, Scope *S) {
+ast::FunctionDecl *Module::getFn(ast::CallExpr &Callee, Scope *S) {
   auto Ident = Callee.getIdentifier();
 
   if (Ident->getSize() == 1) {
-    return llvm::Module::getFunction(Ident->getPart(0));
-  } else {
+    // TODO: check named elements
+    auto Found = FunctionList.find(Ident->getPart(0));
+    if (Found == FunctionList.end())
+      return nullptr;
+
+    return Found->second;
+  }
+  return nullptr;
+
+/*  } else {
     if (auto Var = S->lookup(Ident->getPart(0))) {
       for (auto &Fn : llvm::Module::getFunctionList()) {
         if (!Fn.arg_size())
@@ -98,8 +106,9 @@ llvm::Function *Module::getFn(ast::CallExpr &Callee, Scope *S) {
         }
       }
     }
+
     return nullptr;
-  }
+  }*/
 }
 
 void Module::addType(north::ast::GenericDecl *TypeDecl) {
@@ -127,6 +136,16 @@ GlobalValue::LinkageTypes getLinkageType(north::ast::FunctionDecl *Fn) {
 }
 
 void Module::addFunction(north::ast::FunctionDecl *Fn) {
+  // TODO: overloading
+  if (!FunctionList.try_emplace(Fn->getIdentifier(), Fn).second) {
+    auto Id = Fn->getIdentifier();
+    auto Range = llvm::SMRange(
+        llvm::SMLoc::getFromPointer(Id.data()),
+        llvm::SMLoc::getFromPointer(Id.data() + Id.size()));
+    SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+                               "duplicate definition of function '" +  Id + "'", Range);
+  }
+
   llvm::FunctionType *FnType = nullptr;
   llvm::Type *ResultType = nullptr;
 

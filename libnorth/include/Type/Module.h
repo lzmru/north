@@ -22,6 +22,7 @@ namespace north::ast {
 
 class GenericDecl;
 class InterfaceDecl;
+class FunctionDecl;
 
 } // namespace north::ast
 
@@ -34,11 +35,13 @@ class Module : public llvm::Module {
   using InterfaceDecl     = north::ast::InterfaceDecl;
   using InterfaceListType = llvm::StringMap<InterfaceDecl *>;
   using TypeListType      = llvm::StringMap<Type *>;
+  using FunctionListType  = llvm::StringMap<north::ast::FunctionDecl *>;
   using ImportListType    = std::vector<llvm::StringRef>;
 
   std::unique_ptr<Scope> GlobalScope;
   InterfaceListType InterfaceList;
   TypeListType TypeList;
+  FunctionListType FunctionList;
   ImportListType ImportList;
 
   llvm::simple_ilist<ast::Node> *AST;
@@ -51,7 +54,7 @@ public:
   Type *getType(llvm::StringRef Name) const;
   Type *getTypeOrNull(llvm::StringRef Name) const;
   InterfaceDecl *getInterface(llvm::StringRef Name) const;
-  llvm::Function *getFn(ast::CallExpr &, Scope *);
+  ast::FunctionDecl * getFn(ast::CallExpr &Callee, Scope *S);
   const ImportListType& getImportList() const { return ImportList; }
 
   void addType(north::ast::GenericDecl *);

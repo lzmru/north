@@ -132,6 +132,7 @@ public:
   bool hasArgs() { return !Args.empty(); }
   size_t numberOfArgs() { return Args.size(); }
   llvm::ArrayRef<Argument *> getArgumentList() const { return Args; }
+  Argument *getArg(size_t I) const { return Args[I]; }
 
   void addArgument(Node *Arg, llvm::StringRef ArgName = "") {
     Args.push_back(new Argument {Arg, ArgName});
