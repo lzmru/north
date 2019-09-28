@@ -41,7 +41,7 @@ public:
   explicit Parser(Lexer& Lexer, type::Module* Module)
       : Lex(Lexer), Module(Module) {}
 
-  north::type::Module *parse();
+  void parse();
 
 private:
   Token nextToken();

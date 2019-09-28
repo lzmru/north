@@ -143,6 +143,7 @@ public:
 
   void setIdentifier(QualifiedIdentifierExpr *NewIdent) { Ident = NewIdent; }
   QualifiedIdentifierExpr *getIdentifier() { return Ident; }
+  llvm::StringRef getIdentifier(size_t I) { return Ident->getPart(I); }
 
   llvm::Value *getIR() { return IRValue; }
   void setIR(llvm::Value *Val) { IRValue = Val; }

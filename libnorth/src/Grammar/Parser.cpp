@@ -186,7 +186,7 @@ uint8_t getTokenPrec(Token Tok) {
 ///            | functionDecl
 ///            | interfaceDecl
 ///            | varDecl };
-north::type::Module *Parser::parse() {
+void Parser::parse() {
   auto Tree = new llvm::simple_ilist<ast::Node>();
 
   while (true) {
@@ -213,7 +213,7 @@ north::type::Module *Parser::parse() {
 
     case Token::Eof:
       Module->setAST(Tree);
-      return Module;
+      return;
 
     default:
       auto Pos = Buf[0].Pos;

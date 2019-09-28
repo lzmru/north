@@ -84,22 +84,20 @@ int main(int argc, const char *argv[]) {
   north::Lexer Lexer(SourceManager);
 
   auto Module = new north::type::Module(Path, north::targets::IRBuilder::getContext(), SourceManager);
-  north::Parser Parser(Lexer, Module);
-
-  auto ParsedModule = Parser.parse();
+  north::Parser(Lexer, Module).parse();
 
   if (EmitAST.getValue()) {
     north::ast::Dumper Dumper;
-    applyVisitor(Dumper, ParsedModule);
+    applyVisitor(Dumper, Module);
     return 0;
   }
 
   if (OutputTarget.getValue() == "c") {
-    north::targets::CBuilder C(ParsedModule, SourceManager);
-    applyVisitor(C, ParsedModule);
+    north::targets::CBuilder C(Module, SourceManager);
+    applyVisitor(C, Module);
   } else {
-    north::targets::IRBuilder IR(ParsedModule, SourceManager);
-    applyVisitor(IR, ParsedModule);
+    north::targets::IRBuilder IR(Module, SourceManager);
+    applyVisitor(IR, Module);
 
     verifyModule(*Module, &outs());
 

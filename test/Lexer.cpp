@@ -1,12 +1,3 @@
-//===------------------------------------------------------------*- C++ -*-===//
-//
-//                       The North Compiler Infrastructure
-//
-//                This file is distributed under the MIT License.
-//                        See LICENSE.TXT for details.
-//
-//===----------------------------------------------------------------------===//
-
 #define CATCH_CONFIG_MAIN
 #include <catch2/catch.hpp>
 
@@ -15,37 +6,41 @@
 using namespace north;
 
 TEST_CASE( "001-Lexer", "[lexer]" ) {
-  north::Lexer lexer("../../test/tests/001.n");
+  auto MemBuff = llvm::MemoryBuffer::getFile("../../test/tests/001.n");
+  llvm::SourceMgr SourceManager;
+  SourceManager.AddNewSourceBuffer(std::move(*MemBuff), llvm::SMLoc());
+  north::Lexer Lexer(SourceManager);
 
-  REQUIRE( lexer.getFlagState(Lexer::LexerFlag::IndentationSensitive) == false);
+  REQUIRE( Lexer.getFlagState( Lexer:: LexerFlag::IndentationSensitive) == false);
 
-  REQUIRE( lexer.getNextToken().Type == Token::Open );
-  REQUIRE( lexer.getNextToken().Type == Token::Identifier );
-  REQUIRE( lexer.getNextToken().Type == Token::Def );
-  REQUIRE( lexer.getNextToken().Type == Token::Identifier );
-  REQUIRE( lexer.getNextToken().Type == Token::LParen );
-  REQUIRE( lexer.getNextToken().Type == Token::RParen );
-  REQUIRE( lexer.getNextToken().Type == Token::Colon );
+  REQUIRE( Lexer.getNextToken().Type == Token::Open );
+  REQUIRE( Lexer.getNextToken().Type == Token::Identifier );
+  REQUIRE( Lexer.getNextToken().Type == Token::Def );
+  REQUIRE( Lexer.getNextToken().Type == Token::Identifier );
+  REQUIRE( Lexer.getNextToken().Type == Token::LParen );
+  REQUIRE( Lexer.getNextToken().Type == Token::RParen );
+  REQUIRE( Lexer.getNextToken().Type == Token::Colon );
 
-  lexer.incrementIndentLevel();
-  REQUIRE( lexer.getIndentLevel() == 1 );
+  Lexer.incrementIndentLevel();
+  REQUIRE( Lexer.getIndentLevel() == 1 );
 
-  lexer.turnFlag(Lexer::IndentationSensitive, true);
-  REQUIRE( lexer.getFlagState(Lexer::LexerFlag::IndentationSensitive) == true);
+  Lexer.turnFlag( Lexer::IndentationSensitive, true);
+  REQUIRE( Lexer.getFlagState( Lexer:: LexerFlag::IndentationSensitive) == true);
 
-  REQUIRE( lexer.getNextToken().Type == Token::Indent );
-  REQUIRE( lexer.getNextToken().Type == Token::Identifier );
-  REQUIRE( lexer.getNextToken().Type == Token::LParen );
-  REQUIRE( lexer.getNextToken().Type == Token::RParen );
-  REQUIRE( lexer.getNextToken().Type == Token::Indent );
-  REQUIRE( lexer.getNextToken().Type == Token::Int );
-  REQUIRE( lexer.getNextToken().Type == Token::Dedent );
+  REQUIRE( Lexer.getNextToken().Type == Token::Indent );
+  REQUIRE( Lexer.getNextToken().Type == Token::Identifier );
+  REQUIRE( Lexer.getNextToken().Type == Token::LParen );
+  REQUIRE( Lexer.getNextToken().Type == Token::RParen );
+  REQUIRE( Lexer.getNextToken().Type == Token::Indent );
+  REQUIRE( Lexer.getNextToken().Type == Token::Return );
+  REQUIRE( Lexer.getNextToken().Type == Token::Int );
+  REQUIRE( Lexer.getNextToken().Type == Token::Dedent );
 
-  lexer.decrementIndentLevel();
-  REQUIRE( lexer.getIndentLevel() == 0 );
+  Lexer.decrementIndentLevel();
+  REQUIRE( Lexer.getIndentLevel() == 0 );
 
-  lexer.turnFlag(Lexer::IndentationSensitive, false);
-  REQUIRE( lexer.getFlagState(Lexer::LexerFlag::IndentationSensitive) == false);
+  Lexer.turnFlag( Lexer::IndentationSensitive, false);
+  REQUIRE( Lexer.getFlagState( Lexer:: LexerFlag::IndentationSensitive) == false);
 
-  REQUIRE( lexer.getNextToken().Type == Token::Eof );
+  REQUIRE( Lexer.getNextToken().Type == Token::Eof );
 }

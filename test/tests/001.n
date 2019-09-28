@@ -1,4 +1,5 @@
 open T
+
 def t():
   test()
-  123
+  return 123
