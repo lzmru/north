@@ -91,11 +91,8 @@ Type *Type::String = createPrimitive<true>(IR::getInt8Ty);
 Type *Type::Char = createPrimitive(IR::getInt8Ty);
 
 llvm::Type *Type::toIR(Module *Mod) {
-  if (!IRValue) {
-    llvm::outs() << "yep\n";
+  if (!IRValue)
     IRValue = createIR(Decl.get(), Mod);
-  }
-  llvm::outs() << "toIr(): " << IRValue << '\n';
   return IRValue;
 }
 
