@@ -102,7 +102,7 @@ Value *IRBuilder::visit(ast::BinaryExpr &Expr) {
 
   case Token::Plus:
     if (LHS->getType()->isPointerTy())
-      return Builder.CreateGEP(LHS, {RHS});
+      return Builder.CreateGEP(LHS, RHS);
     BINARY(Add);
 
   case Token::Minus:
@@ -121,6 +121,8 @@ Value *IRBuilder::visit(ast::BinaryExpr &Expr) {
     BINARY(Or);
 
   case Token::Eq:
+          llvm::outs() << LHS->getType()->getTypeID() << " "
+           << RHS->getType()->getTypeID() << '\n';
     BINARY(ICmpEQ);
 
   case Token::NotEq:

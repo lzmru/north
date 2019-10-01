@@ -327,7 +327,7 @@ TokenInfo Lexer::getNextToken() {
       llvm::SMLoc::getFromPointer(Pos.Offset),
       llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
   SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
-      "unexpected char '" + *Pos.Offset + '\'', Range);
+      "unexpected char '" + llvm::Twine(*Pos.Offset) + "\'", Range);
 
   return {};
 }

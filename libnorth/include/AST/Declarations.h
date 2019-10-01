@@ -66,15 +66,18 @@ public:
 class VarDecl : public Declaration {
   std::unique_ptr<GenericDecl> Type;
   std::unique_ptr<Node> Value;
-  llvm::Value *IRValue;
-  llvm::Type *IRType;
+
+  llvm::Value *IRValue = nullptr;
+  llvm::Type *IRType = nullptr;
+
   bool IsArg;
   llvm::StringRef NamedArg;
 
 public:
   explicit VarDecl(const TokenInfo &TkInfo, bool Arg = false)
       : Declaration(TkInfo.Pos, AST_VarDecl, TkInfo.toString()), Type(nullptr),
-        Value(nullptr), IRValue(nullptr), IsArg(Arg), NamedArg(TkInfo.toString()) {}
+        Value(nullptr), IsArg(Arg), NamedArg(TkInfo.toString()) {}
+  ~VarDecl() {}
 
   GenericDecl *getType() { return Type.get(); }
   void setType(GenericDecl *NewType) { Type.reset(NewType); }

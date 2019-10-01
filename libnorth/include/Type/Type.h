@@ -26,7 +26,7 @@ class Type {
 
 public:
   explicit Type(ast::GenericDecl *TypeDecl, Module *Mod)
-      : Decl(TypeDecl), IRValue(toIR(Mod)) {}
+      : Decl(TypeDecl), IRValue(nullptr) {}
   explicit Type(llvm::Type *Value) : Decl(nullptr), IRValue(Value) {}
 
   llvm::Type *toIR(Module *M);

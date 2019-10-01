@@ -50,6 +50,7 @@ class Node : public llvm::ilist_node<Node> {
 
 public:
   explicit Node(const Position &Pos, NodeKind Kind) : Pos(Pos), Kind(Kind) {}
+  virtual ~Node() = default;
 
   const Position &getPosition() const { return Pos; }
   void setPosition(const Position &NewPos) { Pos = NewPos; }

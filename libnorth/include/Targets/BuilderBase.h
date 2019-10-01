@@ -24,8 +24,8 @@ namespace north::targets {
 
 class BuilderBase {
 protected:
-  llvm::SourceMgr& SourceManager;
   std::unique_ptr<north::type::Module> Module;
+  llvm::SourceMgr& SourceManager;
 
 public:
   explicit BuilderBase(north::type::Module *Module, llvm::SourceMgr& SourceMgr)

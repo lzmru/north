@@ -156,27 +156,30 @@ void Module::addFunction(north::ast::FunctionDecl *Fn) {
   } else {
     ResultType = Type::Void->toIR(this);
   }
-
+  std::vector<llvm::Type *> ArgList;
   if (Fn->hasArgs()) {
-    std::vector<llvm::Type *> ArgList;
     auto Args = Fn->getArgumentList();
     ArgList.reserve(Args.size());
 
     for (auto Arg : Args) {
+      outs() << "Arg \"" << Arg->getIdentifier() << "\", type: " << Arg->getType()->getIdentifier();
       auto Argument = getType(Arg->getType()->getIdentifier())->toIR(this);
+      outs() << "AST type: " << getType(Arg->getType()->getIdentifier())->getDecl()->getIdentifier() << ", llvm type: " << *Argument << '\n';
       ArgList.push_back(Arg->getType()->isPtr() ? Argument->getPointerTo(0)
                                                 : Argument);
     }
+
+    outs() << *ResultType << '\n' << *ArgList[0] << '\n' << Fn->isVarArg() << '\n';
 
     FnType = FunctionType::get(ResultType, ArgList, Fn->isVarArg());
   } else {
     FnType = FunctionType::get(ResultType, Fn->isVarArg());
   }
-
+  outs() << *FnType << '\n';
   auto IR =
       Function::Create(FnType, getLinkageType(Fn), Fn->getIdentifier(), this);
 
-  for (Argument &IrArg : IR->args()) {
+  for (auto &IrArg : IR->args()) {
     auto AstArg = Fn->getArg(IrArg.getArgNo());
     AstArg->setIRType(IrArg.getType());
     AstArg->setIRValue(&IrArg);
