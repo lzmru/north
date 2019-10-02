@@ -466,8 +466,9 @@ ast::InterfaceDecl *Parser::parseInterfaceDecl() {
   return Interface;
 }
 
-ast::Node *Parser::parseExpression(uint8_t Prec) {
-  nextToken();
+ast::Node *Parser::parseExpression(uint8_t Prec, bool SkipCurrentToken) {
+  if(SkipCurrentToken)
+    nextToken();
 
   ast::Node *Result = parsePrefix();
 
@@ -493,6 +494,10 @@ ast::Node *Parser::parsePrefix() {
   case Token::Identifier:
     if (peekToken() == Token::Dot)
       return parseQualifiedIdentifier();
+    else if (peekToken() == Token::Comma) {
+
+      return parseQualifiedIdentifier();
+    }
 
   case Token::Char:
   case Token::Int:
@@ -608,8 +613,7 @@ ast::CallExpr *Parser::parseCallExpr(ast::Node *Ident) {
   if (auto I = llvm::dyn_cast<ast::QualifiedIdentifierExpr>(Ident)) {
     Callee = new ast::CallExpr(I);
   } else if (auto L = llvm::dyn_cast<ast::LiteralExpr>(Ident)) {
-    Callee =
-        new ast::CallExpr(new ast::QualifiedIdentifierExpr(L->getTokenInfo()));
+    Callee = new ast::CallExpr(new ast::QualifiedIdentifierExpr(L->getTokenInfo()));
   } else {
     auto Pos = Buf[0].Pos;
 
@@ -628,7 +632,7 @@ ast::CallExpr *Parser::parseCallExpr(ast::Node *Ident) {
         nextToken();
         Callee->addArgument(parseExpression(), Name);
       } else {
-        Callee->addArgument(parseExpression());
+        Callee->addArgument(parseExpression(0, Buf[0].Type != Token::Identifier));
       }
 
       if (!match(Token::Comma))

@@ -63,7 +63,7 @@ private:
   ast::RangeDecl *parseRangeDecl();
   ast::InterfaceDecl *parseInterfaceDecl();
 
-  ast::Node *parseExpression(uint8_t Prec = 0);
+  ast::Node *parseExpression(uint8_t Prec = 0, bool SkipCurrentToken = true);
   ast::Node *parsePrefix();
   ast::Node *parseInfix(ast::Node *);
 

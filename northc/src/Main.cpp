@@ -81,6 +81,12 @@ int main(int argc, const char *argv[]) {
   llvm::SourceMgr SourceManager;
   SourceManager.AddNewSourceBuffer(std::move(*MemBuff), llvm::SMLoc());
 
+  auto Diagnostic = SourceManager.getDiagHandler();
+  SourceManager.setDiagHandler([] (const SMDiagnostic & SMD, void *Context) {
+    SMD.print("", errs());
+    exit(0);
+  });
+
   north::Lexer Lexer(SourceManager);
 
   auto Module = new north::type::Module(Path, north::targets::IRBuilder::getContext(), SourceManager);
