@@ -1,4 +1,5 @@
 #include <catch2/catch.hpp>
+#include <Targets/IRBuilder.h>
 
 #include "Grammar/Lexer.h"
 #include "Grammar/Parser.h"
@@ -8,50 +9,84 @@
 using namespace north;
 using namespace north::ast;
 
-#define TEST_NODE(TYPE, EXPECTED, RESULT) \
-  REQUIRE( AST->front().getKind() == NodeKind::AST_##TYPE ); \
-  auto TYPE##_##EXPECTED##_##RESULT = static_cast<TYPE *>(&AST->front())->RESULT(); \
-  REQUIRE( #EXPECTED == TYPE##_##EXPECTED##_##RESULT ); \
-  AST->pop_front();
+class ParserTester {
+  using ASTType = llvm::simple_ilist<ast::Node>;
+  ASTType *AST;
 
-#define TEST_FUNCTION(NAME, TYPE, BODY_TEST) \
-  REQUIRE( AST->front().getKind() == NodeKind::AST_FunctionDecl ); \
-  auto NAME##TYPE##_fndecl = static_cast<FunctionDecl *>(&AST->front()); \
-  REQUIRE( #NAME == NAME##TYPE##_fndecl->getIdentifier() ); \
-  REQUIRE( TYPE == NAME##TYPE##_fndecl->getTypeDecl() ); \
-  REQUIRE( nullptr != NAME##TYPE##_fndecl->getBlockStmt() ); \
-  auto NAME##TYPE##_ast_buffer = AST; \
-  AST = NAME##TYPE##_fndecl->getBlockStmt()->getBody(); \
-  BODY_TEST(NAME##TYPE##_fndecl->getBlockStmt()); \
-  AST = NAME##TYPE##_ast_buffer; \
-  AST->pop_front();
+public:
+  explicit ParserTester(llvm::StringRef Path) {
+    auto MemBuff = llvm::MemoryBuffer::getFile(Path);
+    llvm::SourceMgr SourceManager;
+    SourceManager.AddNewSourceBuffer(std::move(*MemBuff), llvm::SMLoc());
 
-#define CHECK_CALL(IDENTIFIER, COUNT_OF_ARGS) \
-  REQUIRE( AST->front().getKind() == NodeKind::AST_CallExpr ); \
-  auto IDENTIFIER##EXPECTED##_callExpr = static_cast<CallExpr *>(&AST->front()); \
-  auto IDENTIFIER##EXPECTED##_identifier = IDENTIFIER##EXPECTED##_callExpr->getIdentifier(0); \
-  REQUIRE( #IDENTIFIER == IDENTIFIER##EXPECTED##_identifier ); \
-  REQUIRE( COUNT_OF_ARGS ==  IDENTIFIER##EXPECTED##_callExpr->numberOfArgs() ); \
-  AST->pop_front();
+    auto Module = new type::Module(Path, north::targets::IRBuilder::getContext(), SourceManager);
+
+    Lexer Lexer(SourceManager);
+    north::Parser(Lexer, Module).parse();
+
+    AST = Module->getAST();
+  }
+
+  void expectOpenStmt(llvm::StringRef ImportName) {
+    REQUIRE( AST->front().getKind() == AST_OpenStmt );
+    REQUIRE( ImportName == ((OpenStmt *)&AST->front())->getModuleName() );
+    AST->pop_front();
+  }
+
+  void expectFuncDecl(llvm::StringRef Name,
+                      std::function<void(FunctionDecl*)> DeclVerifier = nullptr,
+                      std::function<void(BlockStmt*)> BlockVerifier = nullptr) {
+    REQUIRE( AST->front().getKind() == AST_FunctionDecl );
+    auto Fn = ((FunctionDecl *)&AST->front());
+    REQUIRE( Fn->getIdentifier() == Name );
+    if (DeclVerifier) DeclVerifier(Fn);
+    if (BlockVerifier) BlockVerifier(Fn->getBlockStmt());
+  }
+
+  void expectReturnStmt(Node *N, NodeKind ExprKind) {
+    REQUIRE( N->getKind() == AST_ReturnStmt );
+    auto Return = (ReturnStmt *)&N;
+    REQUIRE( Return->getReturnExpr()->getKind() == ExprKind );
+  }
+
+  void expectCallExpr(Node *N, llvm::StringRef Name,
+      std::function<void(llvm::ArrayRef<CallExpr::Argument*>)> ArgsVerifier = nullptr) {
+    REQUIRE( N->getKind() == AST_CallExpr );
+    auto Callee = (CallExpr *)&N;
+    if (ArgsVerifier) ArgsVerifier(Callee->getArgumentList());
+  }
+};
 
 TEST_CASE( "001-Parser", "[parser]" ) {
-  llvm::StringRef Path = "../../test/tests/001.n";
+  ParserTester Parser("../../test/tests/001.n");
 
-  auto MemBuff = llvm::MemoryBuffer::getFile(Path);
-  llvm::SourceMgr SourceManager;
-  SourceManager.AddNewSourceBuffer(std::move(*MemBuff), llvm::SMLoc());
+  Parser.expectOpenStmt("Test");
 
-  auto Module = new type::Module(Path, north::targets::IRBuilder::getContext(), SourceManager);
+  Parser.expectFuncDecl("printf", [] (FunctionDecl *Fn) {
+    REQUIRE( Fn->getArg(0)->getIdentifier() == "_" );
+    REQUIRE( Fn->isVarArg() );
+  });
 
-  Lexer Lexer(SourceManager);
-  north::Parser(Lexer, Module).parse();
+  Parser.expectFuncDecl("mult",
+      [] (FunctionDecl *Fn) {
+    REQUIRE( Fn->getGenericsList()[0].Name == "T" );
+    REQUIRE( Fn->getArg(0)->getIdentifier() == "lhs" );
+    REQUIRE( Fn->getArg(0)->getNamedArg() == "_" );
+    REQUIRE( !Fn->isVarArg() );
+    REQUIRE( Fn->getArg(1)->getIdentifier() == "rhs" );
+    REQUIRE( Fn->getArg(1)->getNamedArg() == "rhs" );
+    REQUIRE( Fn->getArg(1)->getType()->getIdentifier() == "T" );
+    REQUIRE( Fn->getTypeDecl()->getIdentifier() == "T" );
+  }, [&] (BlockStmt *Block) {
+    Parser.expectReturnStmt(&Block->getBody()->front(), AST_BinaryExpr);
+  });
 
-  auto AST = Module->getAST();
-
-  TEST_NODE(OpenStmt, T, getModuleName)
-  TEST_FUNCTION(t, nullptr, [&](BlockStmt *Block) {
-    CHECK_CALL(test, 0)
-    REQUIRE( AST->front().getKind() == AST_ReturnStmt );
-  })
+  Parser.expectFuncDecl("main", nullptr, [&] (BlockStmt *Block) {
+    Parser.expectCallExpr(&Block->getBody()->front(), "printf", [](llvm::ArrayRef<CallExpr::Argument*> Args) {
+      REQUIRE( Args[0]->ArgName == "" );
+      REQUIRE( Args[1]->ArgName == "random_vararg_label" );
+      REQUIRE( Args[2]->ArgName == "" );
+    });
+  });
 
 }

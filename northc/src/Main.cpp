@@ -153,7 +153,7 @@ int main(int argc, const char *argv[]) {
     PMB.OptLevel = Opt;
     PMB.SizeLevel = Size;
     PMB.Inliner = createFunctionInliningPass(Opt, Size, false);
-    PMB.DisableUnitAtATime = false;
+    //PMB.DisableUnitAtATime = false;
     PMB.DisableUnrollLoops = false;
     PMB.LoopVectorize = true;
     PMB.SLPVectorize = true;

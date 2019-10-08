@@ -9,9 +9,6 @@
 
 #include "Grammar/Parser.h"
 
-#include "AST/AST.h"
-
-#include <llvm/IR/Function.h>
 #include <llvm/Support/FormatVariadic.h>
 
 namespace north {

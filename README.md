@@ -1,17 +1,7 @@
+# What is this?
+Take a look to [test examples](./test/tests/)
+
 # Build
-## Requirements
-* C++ compiler
-
-| Compiler | Version |
-|----------|---------|
-| GCC      | 5+      |
-| Clang    | 3.6+    |
-| MSVC     | 19.10+  |
-* Cmake 3.8+
-* LLVM 5
-* Catch2
-
-## Build
 ### macOS
 ```
 brew install llvm cmake git catch2
