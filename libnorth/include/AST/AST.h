@@ -4,10 +4,20 @@
 
 #include "Grammar/Token.h"
 #include "Visitor.h"
+#include "Type/Type.h"
+
+#include <llvm/ADT/ArrayRef.h>
 
 namespace llvm {
+class Function;
+class Type;
 class Value;
-}
+class StructType;
+} // namespace llvm
+
+namespace north::type {
+class GenericFunction;
+} // namespace north::type
 
 namespace north::ast {
 
@@ -60,8 +70,6 @@ public:
   virtual llvm::Value *accept(Visitor &) = 0;
 };
 
-using NodePtr = std::unique_ptr<Node>;
-
 #define AST_NODE(KIND)                                                         \
   llvm::Value *accept(Visitor &V) override { return V.visit(*this); }          \
   static bool classof(const Node *Node) {                                      \
@@ -70,8 +78,35 @@ using NodePtr = std::unique_ptr<Node>;
 
 } // namespace north::ast
 
-#include "Declarations.h"
-#include "Expressions.h"
-#include "Statements.h"
+#include "Declarations/Declaration.h"
+#include "Declarations/GenericDecl.h"
+#include "Declarations/VarDecl.h"
+#include "Declarations/InterfaceDecl.h"
+#include "Declarations/AliasDecl.h"
+#include "Declarations/StructDecl.h"
+#include "Declarations/EnumDecl.h"
+#include "Declarations/FunctionDecl.h"
+#include "Declarations/UnionDecl.h"
+#include "Declarations/TupleDecl.h"
+#include "Declarations/RangeDecl.h"
+#include "Declarations/TypeDef.h"
+
+#include "Expressions/UnaryExpr.h"
+#include "Expressions/BinaryExpr.h"
+#include "Expressions/LiteralExpr.h"
+#include "Expressions/RangeExpr.h"
+#include "Expressions/ArrayIndexExpr.h"
+#include "Expressions/QualifiedIdentifierExpr.h"
+#include "Expressions/CallExpr.h"
+#include "Expressions/IfExpr.h"
+#include "Expressions/ForExpr.h"
+#include "Expressions/WhileExpr.h"
+#include "Expressions/AssignExpr.h"
+#include "Expressions/StructInitExpr.h"
+#include "Expressions/ArrayExpr.h"
+
+#include "Statements/OpenStmt.h"
+#include "Statements/BlockStmt.h"
+#include "Statements/ReturnStmt.h"
 
 #endif // LIBNORTH_AST_H
