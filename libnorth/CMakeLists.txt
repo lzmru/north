@@ -1,32 +1,19 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.15)
 project(libnorth)
 
 find_package(LLVM REQUIRED CONFIG)
 
-include_directories(
-        ./include
-        ${LLVM_INCLUDE_DIRS}
-)
+include_directories(./include ${LLVM_INCLUDE_DIRS})
+        
+file(GLOB_RECURSE INCLUDE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/include" *.h)
+file(GLOB_RECURSE SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src" *.cpp)
 
-set(SOURCE_FILES
-        src/Grammar/Lexer.cpp
-        src/Grammar/Parser.cpp
-        src/Grammar/Token.cpp
-        src/Targets/IR/StmtBuilder.cpp
-        src/Type/Module.cpp
-        src/Type/Scope.cpp
-        src/Type/TypeInference.cpp
-        src/Type/Type.cpp
-        src/Targets/IR/ExprBuilder.cpp
-        src/Targets/IR/StmtBuilder.cpp
-        src/Targets/IR/DeclBuilder.cpp
-        src/Targets/C/DeclBuilder.cpp
-        src/Targets/C/StmtBuilder.cpp
-        src/Targets/C/ExprBuider.cpp
-        src/Targets/IR/Utils.cpp
-        )
+#set_property(TARGET ./include PROPERTY FOLDER "Headers")
+#source_group("Headers" FILES ${INCLUDE_FILES})
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/include" PREFIX "Headers" FILES ${INCLUDE_FILES})
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" PREFIX "Sources" FILES ${SOURCE_FILES})
 
-add_library(libnorth ${SOURCE_FILES})
+add_library(libnorth ${INCLUDE_FILES} ${SOURCE_FILES})
 set_target_properties(libnorth PROPERTIES PREFIX "")
 
 llvm_map_components_to_libnames(llvm_libs all)
