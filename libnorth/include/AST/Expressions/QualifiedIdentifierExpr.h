@@ -13,13 +13,15 @@ public:
     Ident.push_back(TkInfo);
   }
 
-  llvm::ArrayRef<TokenInfo> getIdentifier() { return Ident; }
-  llvm::StringRef getPart(uint8_t I) { return Ident[I].toString(); }
+  llvm::ArrayRef<TokenInfo> getIdentifier() const { return Ident; }
+  llvm::StringRef getPart(uint8_t I) const { return Ident[I].toString(); }
   void removeFirst() { Ident.erase(Ident.begin()); }
-  unsigned getSize() { return Ident.size(); }
+  unsigned getSize() const { return Ident.size(); }
   void AddPart(const TokenInfo &TkInfo) { Ident.push_back(TkInfo); }
 
   AST_NODE(QualifiedIdentifierExpr)
+  
+  bool operator==(const QualifiedIdentifierExpr &) const;
 };
 
 } // namespace north::ast
