@@ -5,7 +5,7 @@
 
 namespace north::ast {
 
-class EnumDecl : public GenericDecl {
+class EnumDecl final : public GenericDecl {
   std::vector<LiteralExpr> Members;
   llvm::StringMap<llvm::Value *> IRValues;
 

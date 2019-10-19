@@ -10,7 +10,10 @@
 #ifndef LIBNORTH_TYPE_TYPE_H
 #define LIBNORTH_TYPE_TYPE_H
 
+#include "AST/AST.h"
+
 #include <llvm/IR/Value.h>
+#include <llvm/Support/raw_ostream.h>
 
 namespace north::ast {
 class GenericDecl;
@@ -19,36 +22,42 @@ class GenericDecl;
 namespace north::type {
 
 class Module;
+class Scope;
 
 class Type {
-  std::unique_ptr<ast::GenericDecl> Decl;
-  llvm::Type *IRValue;
+  ast::GenericDecl *Decl;
+  llvm::Type *IRType;
+  Module *Mod;
+  
+  explicit Type(llvm::Type *T) : Decl(nullptr), IRType(T) {}
 
 public:
-  explicit Type(ast::GenericDecl *TypeDecl, Module *Mod)
-      : Decl(TypeDecl), IRValue(nullptr) {}
-  explicit Type(llvm::Type *Value) : Decl(nullptr), IRValue(Value) {}
+  Type(ast::GenericDecl *TypeDecl, Module *Mod) : Decl(TypeDecl), IRType(nullptr), Mod(Mod) {
+    assert(TypeDecl && "Can't generate IR without type declaration");
+    assert(Mod && "Can't generate IR without target module");
+  }
 
-  llvm::Type *toIR(Module *M);
-  void setIR(llvm::Type *Value) { IRValue = Value; }
+  llvm::Type *getIR();
+  void setIR(llvm::Type *T);
 
-  ast::GenericDecl *getDecl() { return Decl.get(); }
+  ast::GenericDecl *getDecl() { return Decl; }
 
-  bool isPrimitive() { return !Decl.get(); }
+  bool isPrimitive() { return !Decl; }
 
   static Type *Void;
-  static Type *Int;
   static Type *Int8;
   static Type *Int16;
   static Type *Int32;
   static Type *Int64;
-  static Type *Int128;
   static Type *Float;
   static Type *Double;
-  static Type *String;
   static Type *Char;
 
   static Type *getArrayType(Type *, uint64_t);
+  
+  friend Type *inferFunctionType(ast::FunctionDecl &, Module *, Scope *);
+  friend Type *inferVarType(ast::VarDecl &, Module *, Scope *);
+  friend Type *inferExprType(ast::Node *, Module *, Scope *);
 };
 
 } // namespace north::type

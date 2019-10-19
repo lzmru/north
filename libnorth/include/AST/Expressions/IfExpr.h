@@ -7,11 +7,10 @@ namespace north::ast {
 class IfExpr : public Node {
   Node *Expr;
   BlockStmt *Block;
-  IfExpr *ElseBranch;
+  IfExpr *ElseBranch = nullptr;
 
 public:
-  explicit IfExpr(const TokenInfo &TkInfo, Node *Expr = nullptr,
-                  BlockStmt *Block = nullptr)
+  explicit IfExpr(const TokenInfo &TkInfo, Node *Expr = nullptr, BlockStmt *Block = nullptr)
       : Node(TkInfo.Pos, AST_IfExpr), Expr(Expr), Block(Block) {}
 
   Node *getExpr() { return Expr; }

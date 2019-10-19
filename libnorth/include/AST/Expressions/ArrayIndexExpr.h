@@ -6,7 +6,7 @@ namespace north::ast {
 
 class ArrayIndexExpr : public Node {
   Node *Ident;
-  Node *IdxExpr;
+  Node *IdxExpr = nullptr;
 
 public:
   explicit ArrayIndexExpr(Node *Identifier)

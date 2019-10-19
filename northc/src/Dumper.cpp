@@ -167,6 +167,10 @@ Value *Dumper::visit(FunctionDecl &Func) {
 
   return nullptr;
 }
+  
+Value *Dumper::visit(ast::GenericFunctionDecl &Fn) {
+  return nullptr;
+}
 
 Value *Dumper::visit(InterfaceDecl &Interface) {
   NodePrinter Node("InterfaceDecl", Interface);
@@ -191,7 +195,7 @@ Value *Dumper::visit(VarDecl &Var) {
   NodePrinter Node("VarDecl", Var);
 
   Node.printField("Name") << Var.getIdentifier() << ",\n";
-
+  
   if (auto Type = Var.getType()) {
     Node.printField("Type");
     Node.offOutIndent();

@@ -8,12 +8,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "Type/Module.h"
-#include "Targets/IRBuilder.h"
 #include "Type/Scope.h"
 #include "Type/Type.h"
+
 #include <llvm/Support/Path.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Transforms/IPO/FunctionImport.h>
+#include <llvm/ADT/Twine.h>
+#include <llvm/Support/FormatVariadic.h>
+#include <llvm/Support/SourceMgr.h>
 
 namespace north::type {
 
@@ -25,17 +28,14 @@ Module::Module(llvm::StringRef ModuleID, llvm::LLVMContext &C, llvm::SourceMgr &
 
   setSourceFileName(ModuleID);
 
-  TypeList.try_emplace("void", Type::Void);
-  TypeList.try_emplace("int", Type::Int);
-  TypeList.try_emplace("i8", Type::Int8);
-  TypeList.try_emplace("i16", Type::Int16);
-  TypeList.try_emplace("i32", Type::Int32);
-  TypeList.try_emplace("i64", Type::Int64);
-  TypeList.try_emplace("i128", Type::Int128);
-  TypeList.try_emplace("float", Type::Float);
+  TypeList.try_emplace("void",   Type::Void  );
+  TypeList.try_emplace("i8",     Type::Int8  );
+  TypeList.try_emplace("i16",    Type::Int16 );
+  TypeList.try_emplace("i32",    Type::Int32 );
+  TypeList.try_emplace("i64",    Type::Int64 );
+  TypeList.try_emplace("float",  Type::Float );
   TypeList.try_emplace("double", Type::Double);
-  TypeList.try_emplace("string", Type::String);
-  TypeList.try_emplace("char", Type::Char);
+  TypeList.try_emplace("char",   Type::Char  );
 }
 
 Type *Module::getType(llvm::StringRef Name) const {
@@ -112,8 +112,9 @@ ast::FunctionDecl *Module::getFn(ast::CallExpr &Callee, Scope *S) {
 }
 
 void Module::addType(north::ast::GenericDecl *TypeDecl) {
-  if (!TypeList.try_emplace(TypeDecl->getIdentifier(), new Type(TypeDecl, this))
-           .second) {
+  auto Type = new type::Type(TypeDecl, this);
+  
+  if (!TypeList.try_emplace(TypeDecl->getIdentifier(), Type).second) {
     auto Range = llvm::SMRange(llvm::SMLoc(), llvm::SMLoc());
     SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
         "Duplicate definition of type '" + TypeDecl->getIdentifier() + "'", Range);
@@ -121,18 +122,11 @@ void Module::addType(north::ast::GenericDecl *TypeDecl) {
 }
 
 void Module::addInterface(north::ast::InterfaceDecl *Interface) {
-  if (!InterfaceList.try_emplace(Interface->getIdentifier(), Interface)
-           .second) {
+  if (!InterfaceList.try_emplace(Interface->getIdentifier(), Interface).second) {
     auto Range = llvm::SMRange(llvm::SMLoc(), llvm::SMLoc());
     SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
         "Duplicate definition of interface '" +  Interface->getIdentifier() + "'", Range);
   }
-}
-
-GlobalValue::LinkageTypes getLinkageType(north::ast::FunctionDecl *Fn) {
-  using LT = GlobalValue::LinkageTypes;
-  return Fn->getIdentifier().front() == '_' ? LT::InternalLinkage
-                                            : LT::ExternalLinkage;
 }
 
 void Module::addFunction(north::ast::FunctionDecl *Fn) {
@@ -146,46 +140,40 @@ void Module::addFunction(north::ast::FunctionDecl *Fn) {
                                "duplicate definition of function '" +  Id + "'", Range);
   }
 
-  llvm::FunctionType *FnType = nullptr;
-  llvm::Type *ResultType = nullptr;
-
-  if (auto ReturnType = Fn->getTypeDecl()) {
-    ResultType = getType(ReturnType->getIdentifier())->toIR(this);
-    if (Fn->getTypeDecl()->isPtr())
-      ResultType = ResultType->getPointerTo(0);
-  } else {
-    ResultType = Type::Void->toIR(this);
-  }
-  std::vector<llvm::Type *> ArgList;
-  if (Fn->hasArgs()) {
-    auto Args = Fn->getArgumentList();
-    ArgList.reserve(Args.size());
-
-    for (auto Arg : Args) {
-      auto Argument = getType(Arg->getType()->getIdentifier())->toIR(this);
-      ArgList.push_back(Arg->getType()->isPtr() ? Argument->getPointerTo(0)
-                                                : Argument);
-    }
-
-    FnType = FunctionType::get(ResultType, ArgList, Fn->isVarArg());
-  } else {
-    FnType = FunctionType::get(ResultType, Fn->isVarArg());
+  if (Fn->hasGenerics()) {
+    this->hasGenericDeclarations = true;
+    return;
   }
 
-  auto IR =
-      Function::Create(FnType, getLinkageType(Fn), Fn->getIdentifier(), this);
-
-  for (auto &IrArg : IR->args()) {
-    auto AstArg = Fn->getArg(IrArg.getArgNo());
-    AstArg->setIRType(IrArg.getType());
-    AstArg->setIRValue(&IrArg);
-  }
-
-  Fn->setIRValue(IR);
+  Fn->createIR(this);
 }
 
 void Module::addImport(north::ast::OpenStmt *Import) {
   ImportList.push_back(Import->getModuleName());
+}
+  
+void Module::checkCall(ast::CallExpr *Callee) {
+  assert(Callee);
+  
+  auto Fn = this->getFn(*Callee, nullptr); // FIXME
+  
+  if (!Fn) {
+    auto Pos = Callee->getPosition();
+
+    auto Range = llvm::SMRange(
+        llvm::SMLoc::getFromPointer(Pos.Offset),
+        llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+
+    SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+                               "unknown function referenced", Range);
+  }
+  
+  if (this->hasGenericDeclarations && Fn->hasGenerics()) {
+    Fn = static_cast<ast::GenericFunctionDecl *>(Fn)->instantiate(Callee, this);
+    Fn->createIR(this);
+  }
+  
+  Callee->setCallableFn(Fn, this);
 }
 
 } // namespace north::type

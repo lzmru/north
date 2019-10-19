@@ -32,6 +32,8 @@ public:
   }
 
   size_t containsGeneric(llvm::StringRef T) {
+    assert(!T.empty());
+    
     for (size_t I = 0; I < Generics.size(); ++I)
       if (Generics[I].Name == T)
         return I;

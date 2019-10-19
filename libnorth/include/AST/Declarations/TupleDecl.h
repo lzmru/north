@@ -3,9 +3,8 @@
 
 namespace north::ast {
 
-class TupleDecl : public GenericDecl {
-  std::vector<VarDecl *> Members; // TODO: free memory in destructor or use
-                                  // something like boost::ptr_vector
+class TupleDecl final : public GenericDecl {
+  std::vector<VarDecl *> Members;
 
 public:
   explicit TupleDecl(const TokenInfo &TkInfo)

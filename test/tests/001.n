@@ -6,4 +6,4 @@ def mult[T](_ lhs: T, rhs: T) -> T:
   return lhs * rhs
 
 def main():
-  printf("%s: %d", random_vararg_label: "mult() res:", mult(5, rhs: 5))
+  printf("%s: %d", random_vararg_label: "mult() res", mult(5, rhs: 5))

@@ -33,6 +33,10 @@ llvm::Value *CBuilder::visit(ast::FunctionDecl &Fn) {
 
   return nullptr;
 }
+  
+llvm::Value *CBuilder::visit(ast::GenericFunctionDecl &Fn) {
+  return nullptr;
+}
 
 llvm::Value *CBuilder::visit(ast::InterfaceDecl &) { return nullptr; }
 llvm::Value *CBuilder::visit(ast::VarDecl &) { return nullptr; }

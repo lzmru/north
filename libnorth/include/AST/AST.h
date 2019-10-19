@@ -7,6 +7,8 @@
 #include "Type/Type.h"
 
 #include <llvm/ADT/ArrayRef.h>
+#include <llvm/ADT/StringRef.h>
+#include <llvm/ADT/SmallVector.h>
 
 namespace llvm {
 class Function;
@@ -17,6 +19,8 @@ class StructType;
 
 namespace north::type {
 class GenericFunction;
+class Type;
+class Module;
 } // namespace north::type
 
 namespace north::ast {
@@ -32,6 +36,7 @@ enum NodeKind {
   AST_RangeDecl,
 
   AST_InterfaceDecl,
+  AST_GenericFunctionDecl,
   AST_FunctionDecl,
   AST_VarDecl,
 

@@ -1,4 +1,3 @@
-
 #ifndef LIBNORTH_AST_VISITOR_H
 #define LIBNORTH_AST_VISITOR_H
 
@@ -11,6 +10,7 @@ namespace north::ast {
 class Node;
 
 class FunctionDecl;
+class GenericFunctionDecl;
 class InterfaceDecl;
 class VarDecl;
 class AliasDecl;
@@ -43,6 +43,7 @@ class ReturnStmt;
 class Visitor {
 public:
   virtual llvm::Value *visit(FunctionDecl &) { return nullptr; }
+  virtual llvm::Value *visit(GenericFunctionDecl &) { return nullptr; }
   virtual llvm::Value *visit(InterfaceDecl &) { return nullptr; }
   virtual llvm::Value *visit(VarDecl &) { return nullptr; }
   virtual llvm::Value *visit(AliasDecl &) { return nullptr; }
@@ -75,6 +76,7 @@ public:
 
 #define AST_WALKER_METHODS                                                     \
   llvm::Value *visit(ast::FunctionDecl &) override;                            \
+  llvm::Value *visit(ast::GenericFunctionDecl &) override;                     \
   llvm::Value *visit(ast::InterfaceDecl &) override;                           \
   llvm::Value *visit(ast::VarDecl &) override;                                 \
   llvm::Value *visit(ast::AliasDecl &) override;                               \

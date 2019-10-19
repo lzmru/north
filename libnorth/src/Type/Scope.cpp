@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "Type/Scope.h"
-#include "AST/Declarations.h"
+#include "AST/AST.h"
 #include "Type/Module.h"
 
 namespace north::type {

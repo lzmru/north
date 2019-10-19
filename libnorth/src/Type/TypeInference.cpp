@@ -12,6 +12,7 @@
 #include "Type/Module.h"
 #include "Type/Scope.h"
 #include "Type/Type.h"
+#include "Targets/IRBuilder.h"
 #include <llvm/ADT/StringMap.h>
 #include <llvm/Support/raw_ostream.h>
 
@@ -36,6 +37,8 @@ public:
 };
 
 llvm::Value *InferenceVisitor::visit(ast::FunctionDecl &) { return nullptr; }
+
+llvm::Value *InferenceVisitor::visit(ast::GenericFunctionDecl &) { return nullptr; }
 
 llvm::Value *InferenceVisitor::visit(ast::InterfaceDecl &) { return nullptr; }
 
@@ -67,11 +70,11 @@ llvm::Value *InferenceVisitor::visit(ast::LiteralExpr &Literal) {
   case Token::Char:
     return new NamedValue("char");
   case Token::Int:
-    return new NamedValue("int");
+    return new NamedValue("i32");
   case Token::String:
-    return new NamedValue("string");
+    return new TypedValue(llvm::Type::getInt8Ty(targets::IRBuilder::getContext())->getPointerTo(0));
   case Token::Nil:
-    return new TypedValue(Type::Int32->toIR(Mod));
+    return new TypedValue(Type::Int32->getIR());
   default:
     break;
   }
@@ -79,7 +82,7 @@ llvm::Value *InferenceVisitor::visit(ast::LiteralExpr &Literal) {
   if (auto Var = CurrentScope->lookup(L.toString()))
     return new TypedValue(Var->getIRType());
   if (auto Type = Mod->getTypeOrNull(L.toString()))
-    return new TypedValue(Type->toIR(Mod));
+    return new TypedValue(Type->getIR());
 
   auto Pos = Literal.getPosition();
 
@@ -97,7 +100,7 @@ llvm::Value *InferenceVisitor::visit(ast::RangeExpr &) { return nullptr; }
 
 llvm::Value *InferenceVisitor::visit(ast::CallExpr &Callee) {
   return new TypedValue(Mod->getFn(Callee, CurrentScope)
-                            ->getIRValue()
+                            ->getIR()
                             ->getFunctionType()
                             ->getReturnType());
 }
@@ -111,7 +114,7 @@ llvm::Value *InferenceVisitor::visit(ast::QualifiedIdentifierExpr &Ident) {
   if (auto Var = CurrentScope->lookup(I))
     return new TypedValue(Var->getIRType());
   if (auto Type = Mod->getTypeOrNull(I))
-    return new TypedValue(Type->toIR(Mod));
+    return new TypedValue(Type->getIR());
 
   return nullptr;
 }
@@ -130,7 +133,7 @@ llvm::Value *InferenceVisitor::visit(ast::StructInitExpr &SI) {
 
 llvm::Value *InferenceVisitor::visit(ast::ArrayExpr &Array) {
   auto ArrTy =
-      type::inferExprType(Array.getValue(0), Mod, CurrentScope)->toIR(Mod);
+      type::inferExprType(Array.getValue(0), Mod, CurrentScope)->getIR();
   return new TypedValue(llvm::ArrayType::get(ArrTy, Array.getCap()));
 }
 
@@ -144,9 +147,9 @@ llvm::Value *InferenceVisitor::visit(ast::ReturnStmt &Return) {
 
 } // namespace detail
 
-Type *inferFunctionType(ast::FunctionDecl &Fn, Module *Mod,
-                        Scope *CurrentScope) {
+Type *inferFunctionType(ast::FunctionDecl &Fn, Module *Mod, Scope *CurrentScope) {
   llvm::Value *Type = nullptr;
+  
   auto Visitor = detail::InferenceVisitor(Mod, CurrentScope);
   auto Body = Fn.getBlockStmt()->getBody();
 
@@ -155,9 +158,10 @@ Type *inferFunctionType(ast::FunctionDecl &Fn, Module *Mod,
       Type = I->accept(Visitor);
   }
 
-  if (Type->getValueID() == 0)
+  if (Type->getValueID() == 0) {
+    llvm::outs() << static_cast<detail::NamedValue *>(Type)->Name << '\n';
     return Mod->getType(static_cast<detail::NamedValue *>(Type)->Name);
-  else
+  } else
     return new type::Type(
         static_cast<detail::TypedValue *>(Type)->Type); // FIXME
 }
@@ -180,8 +184,7 @@ Type *inferExprType(ast::Node *Expr, Module *Mod, Scope *CurrentScope) {
   if (Type->getValueID() == 0)
     return Mod->getType(static_cast<detail::NamedValue *>(Type)->Name);
   else
-    return new type::Type(
-        static_cast<detail::TypedValue *>(Type)->Type); // FIXME
+    return new type::Type(static_cast<detail::TypedValue *>(Type)->Type); // FIXME
 }
 
 } // namespace north::type

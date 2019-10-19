@@ -10,6 +10,8 @@
 #ifndef LIBNORTH_TYPE_SCOPE_H
 #define LIBNORTH_TYPE_SCOPE_H
 
+#include "Type/Module.h"
+
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/StringMap.h>
 
@@ -22,13 +24,11 @@ class VarDecl;
 
 namespace north::type {
 
-class Module;
-
 class Scope {
   Scope *Parent;
   llvm::StringMap<north::ast::VarDecl *> Vars;
   uint8_t IndentLevel;
-  Module *Owner;
+  type::Module *Owner;
 
 public:
   explicit Scope(type::Module *Owner)

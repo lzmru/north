@@ -16,18 +16,12 @@
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/DerivedTypes.h>
-#include <llvm/IR/Function.h>
 #include <llvm/IR/Type.h>
 #include <llvm/IR/ValueSymbolTable.h>
-#include <llvm/IR/Verifier.h>
-#include <llvm/Transforms/IPO/FunctionImport.h>
 
 #include <llvm/ADT/Twine.h>
 #include <llvm/Support/FormatVariadic.h>
-#include <llvm/Support/raw_ostream.h>
 #include <llvm/Support/SourceMgr.h>
-
-#define M Module.get()
 
 namespace north::targets {
 
@@ -83,11 +77,12 @@ Value *IRBuilder::visit(ast::BinaryExpr &Expr) {
   auto RHS = Expr.getRHS()->accept(*this);
 
   if (!LHS || !RHS) {
-    auto Pos = Expr.getPosition();
+    auto LPos = Expr.getLHS()->getPosition();
+    auto RPos = Expr.getRHS()->getPosition();
 
     auto Range = llvm::SMRange(
-        llvm::SMLoc::getFromPointer(Pos.Offset),
-        llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+        llvm::SMLoc::getFromPointer(LPos.Offset),
+        llvm::SMLoc::getFromPointer(RPos.Offset + RPos.Length));
 
     SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
                                "invalid expression", Range);
@@ -209,12 +204,16 @@ Value *IRBuilder::visit(ast::LiteralExpr &Literal) {
     return ConstantInt::get(Context, APInt(32, Token.toString(), 10));
 
   case Token::Identifier:
-    if (auto Var = CurrentScope->lookup(Token.toString()))
-      return GetVal && !Var->isArg() &&
-                     (LoadArg && !isa<StructType>(Var->getIRType()) &&
-                      !isa<ArrayType>(Var->getIRType()))
-                 ? Builder.CreateLoad(Var->getIRValue())
-                 : Var->getIRValue();
+    if (auto Var = CurrentScope->lookup(Token.toString())) {
+      auto IRType = Var->getIRType();
+      
+      assert(IRType);
+      assert(Var->getIRValue());
+      
+      return GetVal && !Var->isArg() && (LoadArg && !isa<StructType>(IRType) && !isa<ArrayType>(IRType))
+               ? Builder.CreateLoad(Var->getIRValue())
+               : Var->getIRValue();
+    }
 
     Range = llvm::SMRange(
         llvm::SMLoc::getFromPointer(Literal.getPosition().Offset),
@@ -224,6 +223,7 @@ Value *IRBuilder::visit(ast::LiteralExpr &Literal) {
                                "unknown symbol `" + Token.toString() + "`", Range);
 
   default:
+    assert(0 && "unknown literal");
     return nullptr;
   }
 }
@@ -231,79 +231,16 @@ Value *IRBuilder::visit(ast::LiteralExpr &Literal) {
 Value *IRBuilder::visit(ast::RangeExpr &) { return nullptr; }
 
 Value *IRBuilder::visit(ast::CallExpr &Callee) {
-  auto Fn = Module->getFn(Callee, CurrentScope);
-
-  if (!Fn) {
-    auto Pos = Callee.getPosition();
-
-    auto Range = llvm::SMRange(
-        llvm::SMLoc::getFromPointer(Pos.Offset),
-        llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
-
-    SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
-                               "unknown function referenced", Range);
-  }
-
-  auto FnArgs = Fn->getArgumentList();
-  if (Callee.numberOfArgs() != FnArgs.size() && !Fn->isVarArg()) {
-    auto Pos = Callee.getPosition();
-
-    auto Range = llvm::SMRange(
-        llvm::SMLoc::getFromPointer(Pos.Offset),
-        llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
-
-    SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
-        formatv("expected {0} args, not {1}", FnArgs.size(), Callee.numberOfArgs()), Range);
-  }
+  auto Fn = Callee.getCallableFn();
 
   std::vector<Value *> Args;
   if (Callee.hasArgs()) {
     Args.reserve(Callee.numberOfArgs() - 1);
     LoadArg = true;
 
-    for (size_t I = 0; I < Callee.getArgumentList().size(); ++I) {
-      auto CallArg = Callee.getArg(I);
-
-      if (auto FnArg = Fn->getArg(I); FnArg != nullptr) {
-        if (FnArg->getNamedArg() != "_") {
-
-          if (CallArg->ArgName == "") {
-            auto FnPos = CallArg->Arg->getPosition();
-
-            auto Range = llvm::SMRange(
-                llvm::SMLoc::getFromPointer(FnPos.Offset),
-                llvm::SMLoc::getFromPointer(FnPos.Offset + FnPos.Length));
-
-            SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
-                                       "expected label `" + FnArg->getNamedArg() + "`", Range);
-          }
-
-          if (CallArg->ArgName != FnArg->getNamedArg()) {
-            auto Arg = CallArg->ArgName;
-
-            auto Range = llvm::SMRange(
-                llvm::SMLoc::getFromPointer(Arg.data()),
-                llvm::SMLoc::getFromPointer(Arg.data() + Arg.size()));
-
-            SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
-                                       "expected label `" + FnArg->getNamedArg() + "`", Range);
-          }
-        } else {
-          if (CallArg->ArgName != "") {
-            auto Arg = CallArg->ArgName;
-
-            auto Range = llvm::SMRange(
-                llvm::SMLoc::getFromPointer(Arg.data()),
-                llvm::SMLoc::getFromPointer(Arg.data() + Arg.size()));
-
-            SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
-                                       "unexpected label `" + CallArg->ArgName + "`", Range);
-          }
-        }
-      }
-
+    for (size_t I = 0; I < Callee.numberOfArgs(); ++I) {
       GetVal = true;
-      auto Val = CallArg->Arg->accept(*this);
+      auto Val = Callee.getArg(I)->Arg->accept(*this);
 
       if (Val->getType()->isPointerTy()) {
         if (auto Arr = dyn_cast<ArrayType>(Val->getType()->getPointerElementType()))
@@ -316,8 +253,8 @@ Value *IRBuilder::visit(ast::CallExpr &Callee) {
     LoadArg = false;
     GetVal = false;
   }
-
-  auto FnIR = Fn->getIRValue();
+  
+  auto FnIR = Fn->getIR();
   auto IR = Builder.CreateCall(FnIR->getFunctionType(), FnIR, Args);
   Callee.setIR(IR);
 
@@ -600,14 +537,14 @@ Value *IRBuilder::visit(ast::StructInitExpr &Struct) {
     Fields.push_back(static_cast<Constant *>(Field->accept(*this)));
   GetVal = false;
 
-  auto IR = ConstantStruct::get(static_cast<StructType *>(Ty->toIR(M)), Fields);
+  auto IR = ConstantStruct::get(static_cast<StructType *>(Ty->getIR()), Fields);
   Struct.setIRValue(IR);
   return IR;
 }
 
 Value *IRBuilder::visit(ast::ArrayExpr &Array) {
   auto FirstElemTy =
-      type::inferExprType(Array.getValue(0), M, CurrentScope)->toIR(M);
+      type::inferExprType(Array.getValue(0), Module, CurrentScope)->getIR();
   auto Ty = ArrayType::get(FirstElemTy, Array.getCap());
 
   std::vector<Constant *> Values;

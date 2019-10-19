@@ -3,7 +3,7 @@
 
 namespace north::ast {
 
-class RangeDecl : public GenericDecl {
+class RangeDecl final : public GenericDecl {
   std::vector<RangeExpr *> Ranges;
 
 public:

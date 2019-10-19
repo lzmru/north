@@ -3,7 +3,7 @@
 
 namespace north::ast {
 
-class AliasDecl : public GenericDecl {
+class AliasDecl final : public GenericDecl {
   llvm::StringRef Alias; // TODO: Twine for qualified names
   llvm::Type *IRValue;
 

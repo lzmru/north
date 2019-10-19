@@ -11,6 +11,7 @@
 #define LIBNORTH_IR_BUILDER_H
 
 #include "BuilderBase.h"
+#include "Type/Module.h"
 
 namespace north::targets {
 
@@ -25,7 +26,7 @@ class IRBuilder : public ast::Visitor, BuilderBase {
   static llvm::LLVMContext Context;
 
 public:
-  explicit IRBuilder(north::type::Module *Module, llvm::SourceMgr& SourceManager)
+  explicit IRBuilder(type::Module *Module, llvm::SourceMgr& SourceManager)
       : BuilderBase(Module, SourceManager), Builder(Context),
         CurrentScope(Module->getGlobalScope()), CurrentFn(nullptr) {}
 

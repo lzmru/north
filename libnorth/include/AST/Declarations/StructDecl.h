@@ -3,7 +3,7 @@
 
 namespace north::ast {
 
-class StructDecl : public GenericDecl {
+class StructDecl final : public GenericDecl {
   std::vector<VarDecl *> Fields;
   llvm::StructType *IRValue = nullptr;
 

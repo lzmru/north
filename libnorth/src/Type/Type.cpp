@@ -18,13 +18,7 @@ namespace north::type {
 
 namespace {
 
-template <bool IsPointer = false, typename T> Type *createPrimitive(T IRType) {
-  if constexpr (IsPointer)
-    return new Type(IRType(targets::IRBuilder::getContext())->getPointerTo(0));
-  return new Type(IRType(targets::IRBuilder::getContext()));
-}
-
-llvm::Type *createStructIR(ast::GenericDecl *Decl, Module *M) {
+llvm::Type *createStructIR(ast::GenericDecl *Decl) {
   auto Struct = static_cast<ast::TypeDef *>(Decl)->getTypeDecl();
   auto IR = llvm::StructType::create(targets::IRBuilder::getContext(),
                                      Decl->getIdentifier());
@@ -32,19 +26,21 @@ llvm::Type *createStructIR(ast::GenericDecl *Decl, Module *M) {
   return IR;
 }
 
-llvm::Type *createEnumIR(ast::GenericDecl *Decl, Module *M) {
+llvm::Type *createEnumIR(ast::GenericDecl *Decl) {
   auto Enum = static_cast<ast::EnumDecl *>(Decl);
 
   uint64_t I = 0;
   for (auto Member : Enum->getMemberList()) {
     Enum->addValue(Member.getTokenInfo().toString(),
-                   llvm::ConstantInt::get(Type::Int32->toIR(M), ++I));
+                   llvm::ConstantInt::get(Type::Int32->getIR(), ++I));
   }
 
-  return Type::Int32->toIR(M); // TODO: typed enum
+  return Type::Int32->getIR(); // TODO: typed enum
 }
 
 llvm::Type *createIR(ast::GenericDecl *Decl, Module *M) {
+  assert(Decl && "Can't generate IR without type decla");
+
   ast::TypeDef *TypeDef;
   llvm::Type *Result = nullptr;
 
@@ -54,16 +50,16 @@ llvm::Type *createIR(ast::GenericDecl *Decl, Module *M) {
 
     switch (TypeDef->getTypeDecl()->getKind()) {
     case ast::AST_StructDecl:
-      return createStructIR(TypeDef, M);
+      return createStructIR(TypeDef);
 
     case ast::AST_AliasDecl:
-      Result = M->getType(TypeDef->getTypeDecl()->getIdentifier())->toIR(M);
+      Result = M->getType(TypeDef->getTypeDecl()->getIdentifier())->getIR();
       if (Decl->isPtr())
         Result = Result->getPointerTo(0);
       return Result;
 
     case ast::AST_EnumDecl:
-      return createEnumIR(TypeDef->getTypeDecl(), M);
+      return createEnumIR(TypeDef->getTypeDecl());
 
     default:
       break;
@@ -75,25 +71,29 @@ llvm::Type *createIR(ast::GenericDecl *Decl, Module *M) {
 }
 
 } // namespace
+  
+#define PRIMITIVE(T) new Type(T(targets::IRBuilder::getContext()))
 
 using IR = llvm::Type;
 
-Type *Type::Void = createPrimitive(IR::getVoidTy);
-Type *Type::Int = createPrimitive(IR::getInt32Ty);
-Type *Type::Int8 = createPrimitive(IR::getInt8Ty);
-Type *Type::Int16 = createPrimitive(IR::getInt16Ty);
-Type *Type::Int32 = createPrimitive(IR::getInt32Ty);
-Type *Type::Int64 = createPrimitive(IR::getInt64Ty);
-Type *Type::Int128 = createPrimitive(IR::getInt128Ty);
-Type *Type::Float = createPrimitive(IR::getFloatTy);
-Type *Type::Double = createPrimitive(IR::getDoubleTy);
-Type *Type::String = createPrimitive<true>(IR::getInt8Ty);
-Type *Type::Char = createPrimitive(IR::getInt8Ty);
+Type *Type::Void   = PRIMITIVE(IR::getVoidTy  );
+Type *Type::Int8   = PRIMITIVE(IR::getInt8Ty  );
+Type *Type::Int16  = PRIMITIVE(IR::getInt16Ty );
+Type *Type::Int32  = PRIMITIVE(IR::getInt32Ty );
+Type *Type::Int64  = PRIMITIVE(IR::getInt64Ty );
+Type *Type::Float  = PRIMITIVE(IR::getFloatTy );
+Type *Type::Double = PRIMITIVE(IR::getDoubleTy);
+Type *Type::Char   = PRIMITIVE(IR::getInt8Ty  );
 
-llvm::Type *Type::toIR(Module *Mod) {
-  if (!IRValue)
-    IRValue = createIR(Decl.get(), Mod);
-  return IRValue;
+llvm::Type *Type::getIR() {
+  if (!IRType)
+    IRType = createIR(Decl, Mod);
+  return IRType;
+}
+  
+void Type::setIR(llvm::Type *T) {
+  assert(T && "IR type must not be null");
+  IRType = T;
 }
 
 } // namespace north::type

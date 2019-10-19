@@ -3,7 +3,7 @@
 
 namespace north::ast {
 
-class VarDecl : public Declaration {
+class VarDecl final : public Declaration {
   GenericDecl *Type = nullptr;
   Node *Value  = nullptr;
 

@@ -5,11 +5,9 @@ namespace north::ast {
 
 class Declaration : public Node {
   llvm::StringRef Identifier;
-  type::Type *Type;
 
 public:
-  explicit Declaration(const Position &Pos, NodeKind Kind,
-                       llvm::StringRef Identifier)
+  explicit Declaration(const Position &Pos, NodeKind Kind, llvm::StringRef Identifier)
       : Node(Pos, Kind), Identifier(Identifier) {}
 
   llvm::StringRef getIdentifier() { return Identifier; }

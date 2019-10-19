@@ -416,17 +416,12 @@ ast::TupleDecl *Parser::parseTupleDecl() {
 /// rangeDecl = 'type' IDENTIFIER '=' rangeExpr;
 ast::RangeDecl *Parser::parseRangeDecl() {
   auto Ranges = new ast::RangeDecl(Buf[0]);
-  auto CheckRange = [&] {
-    if (tryParseLiteral() && (peekToken() == Token::DotDot))
-      return true;
-    return false;
-  };
 
   do {
     Ranges->addRange(parseRangeExpr());
     if (!match(Token::Comma))
       break;
-  } while (CheckRange());
+  } while (tryParseLiteral() && peekToken() == Token::DotDot);
 
   return Ranges;
 }
@@ -607,10 +602,10 @@ ast::StructInitExpr *Parser::parseStructInitExpr(ast::Node *Ident) {
 ast::CallExpr *Parser::parseCallExpr(ast::Node *Ident) {
   ast::CallExpr *Callee = nullptr;
 
-  if (auto I = llvm::dyn_cast<ast::QualifiedIdentifierExpr>(Ident)) {
-    Callee = new ast::CallExpr(I);
-  } else if (auto L = llvm::dyn_cast<ast::LiteralExpr>(Ident)) {
-    Callee = new ast::CallExpr(new ast::QualifiedIdentifierExpr(L->getTokenInfo()));
+  if (auto Identifier = llvm::dyn_cast<ast::QualifiedIdentifierExpr>(Ident)) {
+    Callee = new ast::CallExpr(Identifier);
+  } else if (auto Literal = llvm::dyn_cast<ast::LiteralExpr>(Ident)) {
+    Callee = new ast::CallExpr(new ast::QualifiedIdentifierExpr(Literal->getTokenInfo()));
   } else {
     auto Pos = Buf[0].Pos;
 
@@ -639,6 +634,8 @@ ast::CallExpr *Parser::parseCallExpr(ast::Node *Ident) {
 
   expect(Token::RParen);
 
+  Module->checkCall(Callee);
+  
   return Callee;
 }
 
@@ -727,12 +724,9 @@ ast::WhileExpr *Parser::parseWhileExpr() {
 ast::IfExpr *Parser::parseIfExpr(bool isElse) {
   ast::IfExpr *If = nullptr;
 
-  if (isElse) {
-    If =
-        new ast::IfExpr(Buf[0], match(Token::If) ? parseExpression() : nullptr);
-  } else {
-    If = new ast::IfExpr(Buf[0], parseExpression());
-  }
+  If = isElse
+      ? new ast::IfExpr(Buf[0], match(Token::If) ? parseExpression() : nullptr)
+      : new ast::IfExpr(Buf[0], parseExpression());
 
   expect(Token::Colon);
   If->setBlock(parseBlockStmt());
@@ -809,7 +803,10 @@ ast::FunctionDecl *Parser::parseFunctionDecl() {
 ///         ['->' typeDecl];
 ast::FunctionDecl *Parser::parseFunctionSignature() {
   expect(Token::Identifier);
-  auto Signature = new ast::FunctionDecl(Buf[0]);
+  auto Signature =
+    peekToken() == Token::LBracket
+      ? new ast::GenericFunctionDecl(Buf[0])
+      : new ast::FunctionDecl(Buf[0]);
 
   parseGenericTypeList(Signature);
   parseArgumentList(Signature);
@@ -824,6 +821,7 @@ ast::FunctionDecl *Parser::parseFunctionSignature() {
 /// argumentList = '(' { arg? varDecl { ',' arg? varDecl } } ['...'] ')';
 void Parser::parseArgumentList(ast::FunctionDecl *Function) {
   expect(Token::LParen);
+
   if (match(Token::RParen))
     return;
 
@@ -832,7 +830,6 @@ void Parser::parseArgumentList(ast::FunctionDecl *Function) {
       Function->setVarArg(true);
       break;
     }
-
 
     Function->addArgument(parseVarDecl(true));
   } while (match(Token::Comma));
@@ -938,7 +935,18 @@ void Parser::parseGenericTypeList(ast::GenericDecl *Declaration) {
 /// TODO: specialization
 void Parser::parseGenericType(ast::GenericDecl *Declaration) {
   expect(Token::Identifier);
-  Declaration->addGenericType(Buf[0].Pos, Buf[0].toString());
+   
+  // TODO:
+  switch (Declaration->getKind()) {
+  case ast::NodeKind::AST_FunctionDecl:
+    /*auto Fn = static_cast<ast::FunctionDecl *>(Declaration);
+     Fn->getBlockStmt()->get*/
+    Declaration->addGenericType(Buf[0].Pos, Buf[0].toString());
+    break;
+    
+  default:
+    assert(false && "unimplemented");
+  }
 }
 
 } // namespace north

@@ -3,7 +3,7 @@
 
 namespace north::ast {
 
-class TypeDef : public GenericDecl {
+class TypeDef final : public GenericDecl {
   GenericDecl *Type;
 
 public:

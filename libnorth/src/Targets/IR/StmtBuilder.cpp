@@ -15,8 +15,6 @@
 #include <llvm/Support/Path.h>
 #include <llvm/Support/raw_ostream.h>
 
-#define M Module.get()
-
 namespace north::targets {
 
 using namespace llvm;
@@ -30,12 +28,12 @@ Value *IRBuilder::visit(ast::OpenStmt &O) {
 }
 
 Value *IRBuilder::visit(ast::BlockStmt &Block) {
-  type::Scope Scope(CurrentScope, M);
+  type::Scope Scope(CurrentScope, Module);
   CurrentScope = &Scope;
 
   for (auto Arg : CurrentFn->getArgumentList())
     CurrentScope->addElement(Arg);
-
+  
   Value *Result = nullptr;
 
   if (auto Body = Block.getBody()) {
@@ -43,10 +41,24 @@ Value *IRBuilder::visit(ast::BlockStmt &Block) {
       Result = I->accept(*this);
   }
 
-  if (auto TD = CurrentFn->getTypeDecl()) {
-    auto IRType = type::inferFunctionType(*CurrentFn, M, CurrentScope)->toIR(M);
-    auto NorthType = Module->getType(TD->getIdentifier())->toIR(M);
-    if (IRType != NorthType) {
+  if (auto Type = CurrentFn->getTypeIR()) {
+    auto InferredType = type::inferFunctionType(*CurrentFn, Module, CurrentScope)->getIR();
+    assert(Type);
+    
+    if (InferredType != Type) {
+      auto Pos = CurrentFn->getTypeDecl()->getPosition();
+
+      auto Range = llvm::SMRange(
+          llvm::SMLoc::getFromPointer(Pos.Offset),
+          llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
+
+      SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
+          "return value type of `" + CurrentFn->getIdentifier() +  "` does't match the function type", Range);
+    }
+  } if (auto TypeDecl = CurrentFn->getTypeDecl()) {
+    auto InferredType = type::inferFunctionType(*CurrentFn, Module, CurrentScope)->getIR();
+    auto DeclaredType = Module->getType(TypeDecl->getIdentifier())->getIR();
+    if (InferredType != DeclaredType) {
       auto Pos = CurrentFn->getTypeDecl()->getPosition();
 
       auto Range = llvm::SMRange(
@@ -57,7 +69,8 @@ Value *IRBuilder::visit(ast::BlockStmt &Block) {
           "return value type of `" + CurrentFn->getIdentifier() +  "` does't match the function type", Range);
     }
   } else {
-    Builder.CreateRetVoid();
+    if(!isa<ReturnInst>(Result))
+      Builder.CreateRetVoid();
   }
 
   CurrentScope = Scope.getParent();

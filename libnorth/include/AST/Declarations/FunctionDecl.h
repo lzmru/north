@@ -5,43 +5,74 @@ namespace north::ast {
 
 class FunctionDecl : public GenericDecl {
   std::vector<VarDecl *> Arguments;
+  GenericDecl *Type = nullptr;
   BlockStmt *Block;
-  llvm::Function *IRValue;
+  
   bool IsVarArg;
-  type::GenericFunction *GenericInstantiator = nullptr;
-  type::Type *Type;
+  
+  llvm::Function *IR = nullptr;
+  llvm::Type *TypeIR = nullptr;
 
 public:
   FunctionDecl(const TokenInfo &TkInfo, BlockStmt *Block = nullptr, bool VarArg = false)
       : GenericDecl(TkInfo.Pos, AST_FunctionDecl, TkInfo.toString()),
-        Block(Block), IsVarArg(VarArg), Type(nullptr) {}
+        Block(Block), IsVarArg(VarArg) {}
 
   FunctionDecl(const FunctionDecl &Fn) = default;
 
   bool hasArgs() const { return !Arguments.empty(); }
   llvm::ArrayRef<VarDecl *> getArgumentList() { return Arguments; }
-  void addArgument(VarDecl *Argument) { Arguments.push_back(Argument); }
-  VarDecl *getArg(uint8_t N) { return Arguments[N]; }
+  size_t numberOfArgs() { return Arguments.size(); }
+  
+  VarDecl *getArg(size_t N) {
+    if (N >= Arguments.size())
+      return nullptr;
+    return Arguments[N];
+  }
+  
+  void addArgument(VarDecl *Argument) {
+    assert(Argument);
+    Arguments.push_back(Argument);
+  }
+  
+  GenericDecl *getTypeDecl() { return Type; }
+  void setTypeDecl(GenericDecl *T) { Type = T; }
+  
+  llvm::Type *getTypeIR() { return TypeIR; }
+  void setTypeIR(llvm::Type *T) { TypeIR = T; }
 
   BlockStmt *getBlockStmt() { return Block; }
-  void setBlockStmt(BlockStmt *NewBlock) { Block = NewBlock; }
+  void setBlockStmt(BlockStmt *NewBlock) { assert(NewBlock); Block = NewBlock; }
 
-  void setIRValue(llvm::Function *Fn) { IRValue = Fn; }
-  llvm::Function *getIRValue() { return IRValue; }
+  llvm::Function *getIR() {
+    assert(IR && "createIR() must be called before");
+    return IR;
+  }
 
   void setVarArg(bool V) { IsVarArg = V; }
   bool isVarArg() { return IsVarArg; }
 
-  void setGenericInstantiator(type::GenericFunction *New) { GenericInstantiator = New; }
-  type::GenericFunction *getGenericInstantiator() { return GenericInstantiator; }
-
-  type::Type *getType() { return Type; }
-  void setType(type::Type *T) { Type = T; }
-  void setType(GenericDecl *T) { Type = new type::Type(T); }
-
   AST_NODE(FunctionDecl)
+  
+  void createIR(type::Module *);
 };
 
+class GenericFunctionDecl : public FunctionDecl {
+  using FnList = llvm::SmallVector<FunctionDecl *, 4>;
+  FnList InstantinatedFunctions;
+  
+public:
+  GenericFunctionDecl(const TokenInfo &TkInfo, BlockStmt *Block = nullptr, bool VarArg = false)
+    : FunctionDecl(TkInfo, Block, VarArg) {}
+  
+  void addInstantinatedFunction(FunctionDecl *Fn) { assert(Fn); InstantinatedFunctions.push_back(Fn); }
+  llvm::ArrayRef<FunctionDecl *> getInstantinatedFunctions() { return InstantinatedFunctions; }
+  
+  AST_NODE(GenericFunctionDecl)
+  
+  ast::FunctionDecl *instantiate(ast::CallExpr *, type::Module *);
+};
+  
 } // namespace north::ast
 
 #endif // LIBNORTH_AST_DECLARATIONS_FUNCTIONDECL_H

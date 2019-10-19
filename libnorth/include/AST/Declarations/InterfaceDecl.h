@@ -3,7 +3,7 @@
 
 namespace north::ast {
 
-class InterfaceDecl : public GenericDecl {
+class InterfaceDecl final : public GenericDecl {
   using RequiredList = std::vector<FunctionDecl *>;
   
   RequiredList Required;

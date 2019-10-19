@@ -18,20 +18,21 @@
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
+#include <clang/Basic/FileManager.h>
 
 namespace north::targets {
 
-
 class BuilderBase {
 protected:
-  std::unique_ptr<north::type::Module> Module;
+  type::Module *Module;
   llvm::SourceMgr& SourceManager;
 
 public:
   explicit BuilderBase(north::type::Module *Module, llvm::SourceMgr& SourceMgr)
-      : Module(Module), SourceManager(SourceMgr) { assert(Module != nullptr); }
+      : Module(Module), SourceManager(SourceMgr) { assert(Module && "Cannot build AST without AST (lol)"); }
 
-  llvm::Module *getModule() { return Module.get(); }
+  type::Module *getModule() { return Module; }
+  llvm::SourceMgr &getSourceManager() const { return SourceManager; }
 };
 
 } // namespace north::targets

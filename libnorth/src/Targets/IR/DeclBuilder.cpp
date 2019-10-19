@@ -12,22 +12,12 @@
 #include "Type/TypeInference.h"
 
 #include <llvm/ADT/APFloat.h>
-#include <llvm/ADT/APInt.h>
 #include <llvm/IR/BasicBlock.h>
-#include <llvm/IR/Constants.h>
-#include <llvm/IR/DerivedTypes.h>
-#include <llvm/IR/Function.h>
 #include <llvm/IR/Type.h>
-#include <llvm/IR/ValueSymbolTable.h>
-#include <llvm/IR/Verifier.h>
-#include <llvm/Transforms/IPO/FunctionImport.h>
 
 #include <llvm/ADT/Twine.h>
 #include <llvm/Support/FormatVariadic.h>
-#include <llvm/Support/raw_ostream.h>
 #include <llvm/Support/SourceMgr.h>
-
-#define M Module.get()
 
 namespace north::targets {
 
@@ -37,11 +27,17 @@ Value *IRBuilder::visit(ast::FunctionDecl &Fn) {
   if (!Fn.getBlockStmt())
     return nullptr;
 
-  auto BB = BasicBlock::Create(Context, "entry", Fn.getIRValue());
+  auto BB = BasicBlock::Create(Context, "entry", Fn.getIR());
   Builder.SetInsertPoint(BB);
   CurrentFn = &Fn;
 
   return Fn.getBlockStmt()->accept(*this);
+}
+  
+llvm::Value *IRBuilder::visit(ast::GenericFunctionDecl &GenericFn) {
+  for (auto Fn : GenericFn.getInstantinatedFunctions())
+    Fn->accept(*this);
+  return nullptr;
 }
 
 Value *IRBuilder::visit(ast::InterfaceDecl &) { return nullptr; }
@@ -50,11 +46,11 @@ Value *IRBuilder::visit(ast::VarDecl &Var) {
   llvm::Type *Type = nullptr;
 
   if (auto TypeDecl = Var.getType()) {
-    Type = Module->getType(Var.getType()->getIdentifier())->toIR(M);
+    Type = Module->getType(Var.getType()->getIdentifier())->getIR();
     if (TypeDecl->isPtr())
       Type = Type->getPointerTo(0);
 
-    auto InferredType = inferVarType(Var, M, CurrentScope)->toIR(M);
+    auto InferredType = inferVarType(Var, Module, CurrentScope)->getIR();
     if (InferredType != Type) {
       auto Pos = Var.getPosition();
 
@@ -66,7 +62,7 @@ Value *IRBuilder::visit(ast::VarDecl &Var) {
           "type of value `" + Var.getIdentifier() +  "` type does't match the variable type", Range);
     }
   } else {
-    Type = inferVarType(Var, M, CurrentScope)->toIR(M);
+    Type = inferVarType(Var, Module, CurrentScope)->getIR();
     Var.setIRType(Type);
   }
 
@@ -87,7 +83,7 @@ Value *IRBuilder::visit(ast::StructDecl &Struct) {
 
   for (auto Field : Struct.getFieldList()) {
     auto Ident = Field->getType()->getIdentifier();
-    Args.push_back(Module->getType(Ident)->toIR(M));
+    Args.push_back(Module->getType(Ident)->getIR());
   }
 
   Struct.getIR()->setBody(Args);

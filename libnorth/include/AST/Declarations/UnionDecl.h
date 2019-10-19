@@ -3,7 +3,7 @@
 
 namespace north::ast {
 
-class UnionDecl : public GenericDecl {
+class UnionDecl final : public GenericDecl {
   std::vector<GenericDecl *> Fields;
 
 public:
