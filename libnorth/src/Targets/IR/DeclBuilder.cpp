@@ -26,7 +26,7 @@ using namespace llvm;
 Value *IRBuilder::visit(ast::FunctionDecl &Fn) {
   if (!Fn.getBlockStmt())
     return nullptr;
-
+  
   auto BB = BasicBlock::Create(Context, "entry", Fn.getIR());
   Builder.SetInsertPoint(BB);
   CurrentFn = &Fn;
@@ -35,8 +35,16 @@ Value *IRBuilder::visit(ast::FunctionDecl &Fn) {
 }
   
 llvm::Value *IRBuilder::visit(ast::GenericFunctionDecl &GenericFn) {
-  for (auto Fn : GenericFn.getInstantinatedFunctions())
-    Fn->accept(*this);
+  for (auto Callee : GenericFn.getCalls()) {
+    auto Fn = GenericFn.instantiate(Callee, Module);
+    if (!Fn->maybeGetIR()) {
+      Fn->createIR(Module);
+      Callee->setCallableFn(Fn, Module);
+      Fn->accept(*this);
+    } else {
+      Callee->setCallableFn(Fn, Module);
+    }
+  }
   return nullptr;
 }
 

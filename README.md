@@ -1,5 +1,5 @@
 # What is this?
-Take a look to [test examples](./test/tests/)
+Take a look to [test examples](./test/examples/)
 
 # Build
 ### macOS

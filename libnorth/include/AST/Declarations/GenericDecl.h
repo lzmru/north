@@ -8,12 +8,12 @@ public:
   struct Generic {
     Position Pos;
     llvm::StringRef Name;
-    type::Type *Type;
+    type::Type *Type = nullptr;
 
-    explicit Generic(Position Pos, llvm::StringRef Name)
-        : Pos(Pos), Name(Name), Type(nullptr) {}
+    Generic(Position Pos, llvm::StringRef Name)
+        : Pos(Pos), Name(Name) {}
   };
-  using GenericList = std::vector<Generic>;
+  using GenericList = llvm::SmallVector<Generic, 2>;
 
   enum Modifier { None = 0, Ptr = 1, Ref = 2, Out = 4, In = 8 };
 
@@ -26,22 +26,24 @@ public:
       : Declaration(Pos, Kind, Identifier), Modifiers(Mods) {}
 
   bool hasGenerics() { return !Generics.empty(); }
-  const GenericList &getGenericsList() const { return Generics; }
+  GenericList &getGenericsList() { return Generics; }
   void addGenericType(const Position &Pos, llvm::StringRef Identifier) {
     Generics.emplace_back(Pos, Identifier);
   }
 
-  size_t containsGeneric(llvm::StringRef T) {
+  size_t containsGeneric(llvm::StringRef T) const {
     assert(!T.empty());
     
     for (size_t I = 0; I < Generics.size(); ++I)
       if (Generics[I].Name == T)
         return I;
+    
     return -1;
   }
 
   void instantiateGeneric(size_t I, type::Type *T) { Generics[I].Type = T; }
   Generic &getGeneric(size_t I) { return Generics[I]; }
+  size_t countOfGenerics() const { return Generics.size(); }
 
   void setModifier(Modifier M) { Modifiers |= M; }
   bool hasModifier() { return Modifiers != 0; }

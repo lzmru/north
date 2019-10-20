@@ -87,9 +87,9 @@ public:
     return outs();
   }
 
-  void printGenericList(const GenericDecl &Decl) {
+  void printGenericList(GenericDecl &Decl) {
     NodePrinter Node("Generics");
-    for (const auto &Generic : Decl.getGenericsList()) {
+    for (auto &Generic : Decl.getGenericsList()) {
       indent();
       outs() << Generic.Name << ' ';
       printPos(Generic.Pos) << ",\n";

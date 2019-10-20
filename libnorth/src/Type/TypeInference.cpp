@@ -68,9 +68,9 @@ llvm::Value *InferenceVisitor::visit(ast::LiteralExpr &Literal) {
   auto L = Literal.getTokenInfo();
   switch (L.Type) {
   case Token::Char:
-    return new NamedValue("char");
+    return new TypedValue(Type::Int8->getIR());
   case Token::Int:
-    return new NamedValue("i32");
+    return new TypedValue(Type::Int32->getIR());
   case Token::String:
     return new TypedValue(llvm::Type::getInt8Ty(targets::IRBuilder::getContext())->getPointerTo(0));
   case Token::Nil:

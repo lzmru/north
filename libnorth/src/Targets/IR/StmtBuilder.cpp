@@ -55,7 +55,7 @@ Value *IRBuilder::visit(ast::BlockStmt &Block) {
       SourceManager.PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
           "return value type of `" + CurrentFn->getIdentifier() +  "` does't match the function type", Range);
     }
-  } if (auto TypeDecl = CurrentFn->getTypeDecl()) {
+  } else if (auto TypeDecl = CurrentFn->getTypeDecl()) {
     auto InferredType = type::inferFunctionType(*CurrentFn, Module, CurrentScope)->getIR();
     auto DeclaredType = Module->getType(TypeDecl->getIdentifier())->getIR();
     if (InferredType != DeclaredType) {

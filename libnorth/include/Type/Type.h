@@ -58,6 +58,9 @@ public:
   friend Type *inferFunctionType(ast::FunctionDecl &, Module *, Scope *);
   friend Type *inferVarType(ast::VarDecl &, Module *, Scope *);
   friend Type *inferExprType(ast::Node *, Module *, Scope *);
+  
+  bool operator==(const Type &) const;
+  bool operator!=(const Type &) const;
 };
 
 } // namespace north::type

@@ -24,7 +24,7 @@ public:
   { assert(Identifier); }
 
   bool hasArgs() { return !Args.empty(); }
-  size_t numberOfArgs() { return Args.size(); }
+  size_t countOfArgs() { return Args.size(); }
   llvm::ArrayRef<Argument *> getArgumentList() const { return Args; }
   Argument *getArg(size_t I) const { assert(I < Args.size()); return Args[I]; }
 
@@ -40,7 +40,7 @@ public:
 
   void setIdentifier(QualifiedIdentifierExpr *NewIdent) { assert(NewIdent); Ident = NewIdent; }
   QualifiedIdentifierExpr *getIdentifier() { return Ident; }
-  llvm::StringRef getIdentifier(size_t I) { assert(I > Ident->getSize()); return Ident->getPart(I); }
+  llvm::StringRef getIdentifier(size_t I) { assert(I < Ident->getSize()); return Ident->getPart(I); }
 
   FunctionDecl *getCallableFn() { assert(CallableFn); return CallableFn; }
   void setCallableFn(FunctionDecl *, type::Module *);

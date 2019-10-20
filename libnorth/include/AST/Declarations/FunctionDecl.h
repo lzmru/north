@@ -22,7 +22,7 @@ public:
 
   bool hasArgs() const { return !Arguments.empty(); }
   llvm::ArrayRef<VarDecl *> getArgumentList() { return Arguments; }
-  size_t numberOfArgs() { return Arguments.size(); }
+  size_t countOfArgs() { return Arguments.size(); }
   
   VarDecl *getArg(size_t N) {
     if (N >= Arguments.size())
@@ -48,6 +48,8 @@ public:
     assert(IR && "createIR() must be called before");
     return IR;
   }
+  
+  llvm::Function *maybeGetIR() { return IR; }
 
   void setVarArg(bool V) { IsVarArg = V; }
   bool isVarArg() { return IsVarArg; }
@@ -58,19 +60,30 @@ public:
 };
 
 class GenericFunctionDecl : public FunctionDecl {
-  using FnList = llvm::SmallVector<FunctionDecl *, 4>;
-  FnList InstantinatedFunctions;
+public:
+  struct InstantiatedFn {
+    FunctionDecl *Fn;
+    llvm::SmallVector<GenericDecl::Generic, 2> Types;
+  };
+  
+private:
+  llvm::SmallVector<CallExpr *, 4> Calls;
+  llvm::SmallVector<InstantiatedFn, 4> InstantiatedFunctions;
+  
+  FunctionDecl *isInstantiatedAlready(llvm::ArrayRef<GenericDecl::Generic>) const;
   
 public:
   GenericFunctionDecl(const TokenInfo &TkInfo, BlockStmt *Block = nullptr, bool VarArg = false)
     : FunctionDecl(TkInfo, Block, VarArg) {}
   
-  void addInstantinatedFunction(FunctionDecl *Fn) { assert(Fn); InstantinatedFunctions.push_back(Fn); }
-  llvm::ArrayRef<FunctionDecl *> getInstantinatedFunctions() { return InstantinatedFunctions; }
+  void addInstantiatedFunction(const InstantiatedFn &Fn) { InstantiatedFunctions.push_back(Fn); }
+  llvm::ArrayRef<InstantiatedFn> getInstantiatedFunctions() const { return InstantiatedFunctions; }
   
   AST_NODE(GenericFunctionDecl)
   
-  ast::FunctionDecl *instantiate(ast::CallExpr *, type::Module *);
+  void addCallExpr(CallExpr *);
+  llvm::ArrayRef<CallExpr *> getCalls() { return Calls; }
+  FunctionDecl *instantiate(ast::CallExpr *, type::Module *);
 };
   
 } // namespace north::ast

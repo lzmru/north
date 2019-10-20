@@ -15,6 +15,18 @@
 #include <llvm/Support/raw_ostream.h>
 
 namespace north::type {
+  
+#define PRIMITIVE(P) \
+  new Type(llvm::Type::get ## P ## Ty(targets::IRBuilder::getContext()))
+
+Type *Type::Void   = PRIMITIVE(Void  );
+Type *Type::Int8   = PRIMITIVE(Int8  );
+Type *Type::Int16  = PRIMITIVE(Int16 );
+Type *Type::Int32  = PRIMITIVE(Int32 );
+Type *Type::Int64  = PRIMITIVE(Int64 );
+Type *Type::Float  = PRIMITIVE(Float );
+Type *Type::Double = PRIMITIVE(Double);
+Type *Type::Char   = PRIMITIVE(Int8  );
 
 namespace {
 
@@ -71,19 +83,6 @@ llvm::Type *createIR(ast::GenericDecl *Decl, Module *M) {
 }
 
 } // namespace
-  
-#define PRIMITIVE(T) new Type(T(targets::IRBuilder::getContext()))
-
-using IR = llvm::Type;
-
-Type *Type::Void   = PRIMITIVE(IR::getVoidTy  );
-Type *Type::Int8   = PRIMITIVE(IR::getInt8Ty  );
-Type *Type::Int16  = PRIMITIVE(IR::getInt16Ty );
-Type *Type::Int32  = PRIMITIVE(IR::getInt32Ty );
-Type *Type::Int64  = PRIMITIVE(IR::getInt64Ty );
-Type *Type::Float  = PRIMITIVE(IR::getFloatTy );
-Type *Type::Double = PRIMITIVE(IR::getDoubleTy);
-Type *Type::Char   = PRIMITIVE(IR::getInt8Ty  );
 
 llvm::Type *Type::getIR() {
   if (!IRType)
@@ -94,6 +93,23 @@ llvm::Type *Type::getIR() {
 void Type::setIR(llvm::Type *T) {
   assert(T && "IR type must not be null");
   IRType = T;
+}
+  
+bool Type::operator==(const Type &RHS) const {
+  bool A = true, B = true;
+  
+  if (this->Decl && RHS.Decl)
+    A = this->Decl->getIdentifier() == RHS.Decl->getIdentifier();
+    
+  // TODO: More precise type checking
+  if (this->IRType && RHS.IRType)
+    B = this->IRType == RHS.IRType;
+  
+  return A && B;
+}
+  
+bool Type::operator!=(const Type &RHS) const {
+  return !(*this == RHS);
 }
 
 } // namespace north::type

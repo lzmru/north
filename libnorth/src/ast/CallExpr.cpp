@@ -20,7 +20,7 @@ void CallExpr::setCallableFn(FunctionDecl *Fn, type::Module *Module) {
   assert(Fn);
   assert(Module);
   
-  if (this->numberOfArgs() != Fn->numberOfArgs() && !Fn->isVarArg()) {
+  if (this->countOfArgs() != Fn->countOfArgs() && !Fn->isVarArg()) {
     auto Pos = this->getPosition();
 
     auto Range = llvm::SMRange(
@@ -28,13 +28,13 @@ void CallExpr::setCallableFn(FunctionDecl *Fn, type::Module *Module) {
         llvm::SMLoc::getFromPointer(Pos.Offset + Pos.Length));
 
     Module->getSourceManager().PrintMessage(Range.Start, llvm::SourceMgr::DiagKind::DK_Error,
-        llvm::formatv("expected {0} args, not {1}", Fn->numberOfArgs(), this->numberOfArgs()), Range);
+        llvm::formatv("expected {0} args, not {1}", Fn->countOfArgs(), this->countOfArgs()), Range);
   }
 
-  for (size_t I = 0; I < this->numberOfArgs(); ++I) {
+  for (size_t I = 0; I < this->countOfArgs(); ++I) {
     auto CallArg = this->getArg(I);
     
-    if (auto FnArg = Fn->getArg(I); FnArg != nullptr && I < Fn->numberOfArgs()) {
+    if (auto FnArg = Fn->getArg(I); FnArg != nullptr && I < Fn->countOfArgs()) {
       if (FnArg->getNamedArg() != "_") {
 
         if (CallArg->ArgName == "") {

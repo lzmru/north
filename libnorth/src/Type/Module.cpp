@@ -169,8 +169,8 @@ void Module::checkCall(ast::CallExpr *Callee) {
   }
   
   if (this->hasGenericDeclarations && Fn->hasGenerics()) {
-    Fn = static_cast<ast::GenericFunctionDecl *>(Fn)->instantiate(Callee, this);
-    Fn->createIR(this);
+    static_cast<ast::GenericFunctionDecl *>(Fn)->addCallExpr(Callee);
+    return;
   }
   
   Callee->setCallableFn(Fn, this);

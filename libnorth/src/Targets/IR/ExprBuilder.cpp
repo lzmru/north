@@ -235,10 +235,10 @@ Value *IRBuilder::visit(ast::CallExpr &Callee) {
 
   std::vector<Value *> Args;
   if (Callee.hasArgs()) {
-    Args.reserve(Callee.numberOfArgs() - 1);
+    Args.reserve(Callee.countOfArgs() - 1);
     LoadArg = true;
 
-    for (size_t I = 0; I < Callee.numberOfArgs(); ++I) {
+    for (size_t I = 0; I < Callee.countOfArgs(); ++I) {
       GetVal = true;
       auto Val = Callee.getArg(I)->Arg->accept(*this);
 
