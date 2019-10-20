@@ -1,0 +1,14 @@
+open Test
+
+def printf(_: *i8, ...)
+
+def add[T](_ lhs: T, rhs: T) -> T:
+  return lhs + rhs
+
+def mult[T](_ lhs: T, rhs: T) -> T:
+  return lhs * rhs
+
+def main():
+  printf("%d\n", random_vararg_label: mult(5, rhs: 5))
+  printf("%c\n", mult('a', rhs: '0'))
+  printf("%c\n", add('a', rhs: '1'))
