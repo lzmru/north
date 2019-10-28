@@ -88,13 +88,16 @@ Value *IRBuilder::visit(ast::AliasDecl &Alias) { return nullptr; }
 
 Value *IRBuilder::visit(ast::StructDecl &Struct) {
   std::vector<llvm::Type *> Args;
+  Args.reserve(Struct.getFieldList().size());
 
   for (auto Field : Struct.getFieldList()) {
     auto Ident = Field->getType()->getIdentifier();
     Args.push_back(Module->getType(Ident)->getIR());
   }
-
-  Struct.getIR()->setBody(Args);
+  
+  auto IR = StructType::create(targets::IRBuilder::getContext(), Args, "lol");
+  Struct.setIR(IR);
+  outs() << *IR << '\n';
   return nullptr;
 }
 

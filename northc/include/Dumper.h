@@ -1,4 +1,4 @@
-//===--- Dumper/Dumper.h — AST dumping implementation -----------*- C++ -*-===//
+//===--- Dumper.h — AST dumping implementation ------------------*- C++ -*-===//
 //
 //                       The North Compiler Infrastructure
 //
@@ -7,10 +7,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef NORTH_AST_DUMPER_H
-#define NORTH_AST_DUMPER_H
+#ifndef NORTHC_AST_DUMPER_H
+#define NORTHC_AST_DUMPER_H
 
 #include "AST/Visitor.h"
+
+#include <llvm/Support/raw_ostream.h>
 
 namespace north::ast {
 
@@ -21,4 +23,4 @@ public:
 
 } // namespace north::ast
 
-#endif // NORTH_AST_DUMPER_H
+#endif // NORTHC_AST_DUMPER_H

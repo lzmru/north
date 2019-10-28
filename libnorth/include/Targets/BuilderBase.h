@@ -28,8 +28,8 @@ protected:
   llvm::SourceMgr& SourceManager;
 
 public:
-  explicit BuilderBase(north::type::Module *Module, llvm::SourceMgr& SourceMgr)
-      : Module(Module), SourceManager(SourceMgr) { assert(Module && "Cannot build AST without AST (lol)"); }
+  explicit BuilderBase(north::type::Module *Module)
+      : Module(Module), SourceManager(Module->getSourceManager()) { assert(Module && "Cannot build AST without AST (lol)"); }
 
   type::Module *getModule() { return Module; }
   llvm::SourceMgr &getSourceManager() const { return SourceManager; }

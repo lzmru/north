@@ -5,7 +5,7 @@ namespace north::ast {
 
 class StructDecl final : public GenericDecl {
   std::vector<VarDecl *> Fields;
-  llvm::StructType *IRValue = nullptr;
+  llvm::StructType *IR = nullptr;
 
 public:
   explicit StructDecl(const Position &Pos, bool IsPacked = false)
@@ -15,9 +15,10 @@ public:
   VarDecl *getField(uint8_t I) { return Fields[I]; }
   void addField(VarDecl *Field) { Fields.push_back(Field); }
 
-  llvm::StructType *getIR() { return IRValue; }
-  void setIR(llvm::Type *NewIRValue) {
-    IRValue = (llvm::StructType *)NewIRValue;
+  llvm::StructType *getIR() { assert(IR); return IR; }
+  void setIR(llvm::StructType *NewIR) {
+    assert(NewIR);
+    IR = NewIR;
   }
 
   AST_NODE(StructDecl)

@@ -17,7 +17,7 @@
 #include <llvm/Support/SourceMgr.h>
 
 namespace north::ast {
-  
+
 void GenericFunctionDecl::addCallExpr(ast::CallExpr *Callee) {
   assert(Callee);
   this->Calls.push_back(Callee);

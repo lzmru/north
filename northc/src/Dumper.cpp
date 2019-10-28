@@ -10,12 +10,26 @@
 #include "Dumper.h"
 
 #include "AST/AST.h"
-#include "Trace.h"
 
 #include <llvm/Support/Error.h>
 #include <llvm/Support/raw_ostream.h>
 
 namespace {
+
+class Tabulator {
+  static unsigned Tab;
+
+public:
+  explicit Tabulator(llvm::raw_ostream &OS) {
+    for (unsigned i = 0; i != Tab; ++i)
+      OS << "  ";
+    ++Tab;
+  }
+  
+  ~Tabulator() { --Tab; }
+};
+
+unsigned Tabulator::Tab = 0;
 
 using namespace llvm;
 using namespace north::ast;
